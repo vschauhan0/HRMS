@@ -46,7 +46,7 @@ export function BottomNav() {
                   <SheetTrigger asChild>
                     <button
                       className={cn(
-                        'flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors min-w-16',
+                        'flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors min-w-[4rem]',
                         isActive ? 'text-primary' : 'text-muted-foreground'
                       )}
                     >
@@ -130,7 +130,7 @@ export function BottomNav() {
                 key={tab.page}
                 onClick={() => navigate(tab.page)}
                 className={cn(
-                  'flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors min-w-16',
+                  'flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors min-w-[4rem]',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )}
               >

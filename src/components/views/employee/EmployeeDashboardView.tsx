@@ -77,7 +77,7 @@ export default function EmployeeDashboardView() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-24 w-full" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -91,7 +91,7 @@ export default function EmployeeDashboardView() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -126,8 +126,8 @@ export default function EmployeeDashboardView() {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
-                  <DollarSign className="h-5 w-5 text-emerald-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Current Month Salary</p>
@@ -164,8 +164,8 @@ export default function EmployeeDashboardView() {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-                  <FileText className="h-5 w-5 text-blue-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Form 16 Documents</p>
@@ -190,8 +190,8 @@ export default function EmployeeDashboardView() {
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50">
-                <Receipt className="h-5 w-5 text-violet-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                <Receipt className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Salary Slips</p>
@@ -205,8 +205,8 @@ export default function EmployeeDashboardView() {
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">
-                <UserCheck className="h-5 w-5 text-amber-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <UserCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-muted-foreground">Profile Completion</p>

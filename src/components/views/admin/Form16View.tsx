@@ -301,8 +301,10 @@ export default function Form16View() {
                 {documents.map((doc) => (
                   <TableRow key={doc.id}>
                     <TableCell className="text-sm">
-                      {/* We'd ideally have employee info; show ID as fallback */}
-                      {doc.employeeId}
+                      {doc.employee ? `${doc.employee.firstName} ${doc.employee.lastName}` : doc.employeeId}
+                      {doc.employee && (
+                        <span className="block text-xs text-muted-foreground font-mono">{doc.employee.employeeCode}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">{doc.financialYear}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -341,7 +343,10 @@ export default function Form16View() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium text-sm">{doc.employeeId}</p>
+                      <p className="font-medium text-sm">{doc.employee ? `${doc.employee.firstName} ${doc.employee.lastName}` : doc.employeeId}</p>
+                      {doc.employee && (
+                        <p className="text-xs text-muted-foreground font-mono">{doc.employee.employeeCode}</p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {doc.financialYear}
                       </p>

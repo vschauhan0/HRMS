@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, Plus, Upload, Download, Pencil, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Upload, Download, Pencil, Eye, ChevronLeft, ChevronRight, MoreVertical, UserCheck, UserX, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +24,15 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useNavStore } from '@/store/nav-store';
 import { useAuthStore } from '@/store/auth-store';
-import { apiGet } from '@/lib/api-client';
+import { apiGet, apiPatch } from '@/lib/api-client';
 import { STATUS_COLORS, PAGE_SIZE } from '@/lib/constants';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Employee, Branch, Company, PaginatedResponse } from '@/types';
 
 export default function EmployeeListView() {
@@ -113,6 +120,16 @@ export default function EmployeeListView() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  async function handleStatusChange(empId: string, newStatus: string) {
+    try {
+      await apiPatch(`/employees/${empId}/status`, { status: newStatus });
+      toast.success(`Employee marked as ${newStatus}`);
+      fetchEmployees();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status');
+    }
+  }
 
   function handleExport() {
     const params = new URLSearchParams();
@@ -296,6 +313,32 @@ export default function EmployeeListView() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={emp.status === 'PENDING'}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'ACTIVE')}>
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Mark Active
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'INACTIVE')}>
+                              <Ban className="h-4 w-4 mr-2" />
+                              Mark Inactive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'RESIGNED')}>
+                              <UserX className="h-4 w-4 mr-2" />
+                              Mark Resigned
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -364,6 +407,31 @@ export default function EmployeeListView() {
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={emp.status === 'PENDING'}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'ACTIVE')}>
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Mark Active
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'INACTIVE')}>
+                          <Ban className="h-4 w-4 mr-2" />
+                          Mark Inactive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'RESIGNED')}>
+                          <UserX className="h-4 w-4 mr-2" />
+                          Mark Resigned
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardContent>
               </Card>

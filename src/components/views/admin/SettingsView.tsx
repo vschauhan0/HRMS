@@ -94,7 +94,7 @@ export default function SettingsView() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6 max-w-2xl">
+      <div className="space-y-6 max-w-2xl">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-48 w-full" />
@@ -104,7 +104,7 @@ export default function SettingsView() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>

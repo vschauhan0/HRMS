@@ -76,7 +76,7 @@ export default function ChangePasswordView() {
   const watchNewPassword = {} as any;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-lg mx-auto">
+    <div className="space-y-6 max-w-lg mx-auto">
       {/* Back button */}
       <Button variant="ghost" size="sm" className="-ml-2" onClick={goBack}>
         <ArrowLeft className="h-4 w-4 mr-1" />

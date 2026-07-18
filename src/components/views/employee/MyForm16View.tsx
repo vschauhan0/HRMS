@@ -37,7 +37,7 @@ export default function MyForm16View() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
@@ -49,7 +49,7 @@ export default function MyForm16View() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Form 16 Documents</h1>
@@ -76,8 +76,8 @@ export default function MyForm16View() {
             <Card key={doc.id} className="rounded-xl shadow-sm">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50">
-                    <FileText className="h-5 w-5 text-orange-600" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                    <FileText className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold">

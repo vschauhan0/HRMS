@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/store/auth-store';
 import { useNavStore } from '@/store/nav-store';
-import { Menu, Search, Bell, Moon, Sun, LogOut, User } from 'lucide-react';
+import { Menu, Search, Bell, Moon, Sun, LogOut, User, LayoutDashboard, Users, Upload, FileText, ClipboardList, BarChart3, Settings, Building2, GitBranch, UserCog, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,34 +44,34 @@ export function AppTopbar() {
   const isEmployeeRole = isEmployee();
 
   const superAdminNavItems: NavItem[] = [
-    { label: 'Dashboard', icon: Menu, page: 'admin-dashboard' },
-    { label: 'Companies', icon: Menu, page: 'companies' },
-    { label: 'Branches', icon: Menu, page: 'branches' },
-    { label: 'Admins', icon: Menu, page: 'admins' },
-    { label: 'Employees', icon: Menu, page: 'employees' },
-    { label: 'Salary', icon: Menu, page: 'salary' },
-    { label: 'Form 16', icon: Menu, page: 'form16' },
-    { label: 'Appointments', icon: Menu, page: 'appointments' },
-    { label: 'Reports', icon: Menu, page: 'reports' },
-    { label: 'Settings', icon: Menu, page: 'settings' },
+    { label: 'Dashboard', icon: LayoutDashboard, page: 'admin-dashboard' },
+    { label: 'Companies', icon: Building2, page: 'companies' },
+    { label: 'Branches', icon: GitBranch, page: 'branches' },
+    { label: 'Admins', icon: UserCog, page: 'admins' },
+    { label: 'Employees', icon: Users, page: 'employees' },
+    { label: 'Salary', icon: Upload, page: 'salary' },
+    { label: 'Form 16', icon: FileText, page: 'form16' },
+    { label: 'Appointments', icon: ClipboardList, page: 'appointments' },
+    { label: 'Reports', icon: BarChart3, page: 'reports' },
+    { label: 'Settings', icon: Settings, page: 'settings' },
   ];
 
   const adminNavItems: NavItem[] = [
-    { label: 'Dashboard', icon: Menu, page: 'admin-dashboard' },
-    { label: 'Employees', icon: Menu, page: 'employees' },
-    { label: 'Salary', icon: Menu, page: 'salary' },
-    { label: 'Form 16', icon: Menu, page: 'form16' },
-    { label: 'Appointments', icon: Menu, page: 'appointments' },
-    { label: 'Reports', icon: Menu, page: 'reports' },
-    { label: 'Settings', icon: Menu, page: 'settings' },
+    { label: 'Dashboard', icon: LayoutDashboard, page: 'admin-dashboard' },
+    { label: 'Employees', icon: Users, page: 'employees' },
+    { label: 'Salary', icon: Upload, page: 'salary' },
+    { label: 'Form 16', icon: FileText, page: 'form16' },
+    { label: 'Appointments', icon: ClipboardList, page: 'appointments' },
+    { label: 'Reports', icon: BarChart3, page: 'reports' },
+    { label: 'Settings', icon: Settings, page: 'settings' },
   ];
 
   const employeeNavItems: NavItem[] = [
-    { label: 'Dashboard', icon: Menu, page: 'employee-dashboard' },
-    { label: 'Salary Slips', icon: Menu, page: 'my-salary' },
-    { label: 'Form 16', icon: Menu, page: 'my-form16' },
-    { label: 'Profile', icon: Menu, page: 'my-profile' },
-    { label: 'Change Password', icon: Menu, page: 'change-password' },
+    { label: 'Dashboard', icon: LayoutDashboard, page: 'employee-dashboard' },
+    { label: 'Salary Slips', icon: FileText, page: 'my-salary' },
+    { label: 'Form 16', icon: FileText, page: 'my-form16' },
+    { label: 'Profile', icon: User, page: 'my-profile' },
+    { label: 'Change Password', icon: Lock, page: 'change-password' },
   ];
 
   const navItems = isEmployeeRole 
@@ -187,7 +187,8 @@ export function AppTopbar() {
                             : 'text-muted-foreground hover:bg-accent'
                         }`}
                       >
-                        {item.label}
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}

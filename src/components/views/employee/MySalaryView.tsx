@@ -102,7 +102,7 @@ export default function MySalaryView() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-10 w-32" />
@@ -117,7 +117,7 @@ export default function MySalaryView() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">My Salary Slips</h1>

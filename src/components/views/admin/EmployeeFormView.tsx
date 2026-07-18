@@ -41,7 +41,7 @@ type EmployeeFormValues = z.infer<typeof employeeSchema>;
 
 export default function EmployeeFormView() {
   const { getParam, navigate } = useNavStore();
-  const { selectedCompany } = useAuthStore();
+  const { selectedCompany, isSuperAdmin } = useAuthStore();
   const editId = getParam('id') as string | undefined;
   const isEdit = !!editId;
   const isView = getParam('view') as boolean | undefined;
@@ -283,6 +283,29 @@ export default function EmployeeFormView() {
                   disabled={isView || isSubmitting}
                   {...register('designation')}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select
+                  value={selectedCompanyId}
+                  onValueChange={(v) => {
+                    setSelectedCompanyId(v);
+                    setValue('branchId', '', { shouldValidate: true });
+                  }}
+                  disabled={!isSuperAdmin() || isView || isSubmitting}
+                >
+                  <SelectTrigger disabled={!isSuperAdmin() || isView || isSubmitting}>
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2 sm:col-span-2">

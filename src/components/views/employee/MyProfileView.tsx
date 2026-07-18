@@ -106,7 +106,7 @@ export default function MyProfileView() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -115,7 +115,7 @@ export default function MyProfileView() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">My Profile</h1>
 
       {/* Profile Photo Section */}

@@ -151,6 +151,7 @@ export interface Form16Document {
   uploadedBy: string;
   createdAt: string;
   updatedAt: string;
+  employee?: { id: string; employeeCode: string; firstName: string; lastName: string; email: string; company?: { name: string } };
 }
 
 // Audit Log

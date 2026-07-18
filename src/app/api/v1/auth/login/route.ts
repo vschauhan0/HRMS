@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
           employeeId: user.employeeId,
           adminProfile: user.adminProfile
             ? {
+                name: user.adminProfile.name,
+                mobile: user.adminProfile.mobile,
                 company: user.adminProfile.company,
               }
             : null,

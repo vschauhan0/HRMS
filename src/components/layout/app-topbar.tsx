@@ -147,6 +147,12 @@ export function AppTopbar() {
     return user?.adminProfile?.name || 'Admin';
   };
 
+  const getRoleLabel = () => {
+    if (user?.role === 'SUPER_ADMIN') return 'Super Admin';
+    if (user?.role === 'ADMIN') return 'Admin';
+    return 'Employee';
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-sm border-b">
       <div className="flex items-center justify-between h-14 px-4 sm:px-6">
@@ -263,7 +269,7 @@ export function AppTopbar() {
               <DropdownMenuLabel>
                 <div>
                   <p className="text-sm font-medium">{getUserName()}</p>
-                  <p className="text-xs text-muted-foreground">{user?.role}</p>
+                  <p className="text-xs text-muted-foreground">{getRoleLabel()}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

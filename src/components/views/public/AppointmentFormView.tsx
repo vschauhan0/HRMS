@@ -63,8 +63,8 @@ export default function AppointmentFormView() {
       setValue('branchId', '');
       return;
     }
-    apiGet<Branch[]>(`/companies/${selectedCompanyId}/branches`)
-      .then((data) => setBranches(data))
+    apiGet<Branch[]>(`/branches?companyId=${selectedCompanyId}&pageSize=100`)
+      .then((data) => setBranches(Array.isArray(data) ? data : []))
       .catch(() => {
         setBranches([]);
         toast.error('Failed to load branches');

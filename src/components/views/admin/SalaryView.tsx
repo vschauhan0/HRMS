@@ -57,10 +57,10 @@ export default function SalaryView() {
         companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
       if (!companyId) return;
       try {
-        const res = await apiGet<PaginatedResponse<Branch>>(
+        const res = await apiGet<Branch[]>(
           `/branches?companyId=${companyId}&pageSize=100`
         );
-        setBranches(res.data || []);
+        setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
       } catch {
         setBranches([]);
       }
@@ -73,10 +73,10 @@ export default function SalaryView() {
     if (!isSuperAdmin()) return;
     async function fetchCompanies() {
       try {
-        const res = await apiGet<PaginatedResponse<Company>>(
+        const res = await apiGet<Company[]>(
           '/companies?pageSize=100'
         );
-        setCompanies(res.data || []);
+        setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
       } catch {
         setCompanies([]);
       }

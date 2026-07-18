@@ -56,8 +56,8 @@ export default function BranchListView() {
       const params = new URLSearchParams();
       params.set('pageSize', '200');
       if (companyFilter !== 'all') params.set('companyId', companyFilter);
-      const res = await apiGet<PaginatedResponse<Branch>>(`/branches?${params.toString()}`);
-      setBranches(res.data || []);
+      const res = await apiGet<Branch[]>(`/branches?${params.toString()}`);
+      setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch {
       setBranches([]);
     } finally {
@@ -67,8 +67,8 @@ export default function BranchListView() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await apiGet<PaginatedResponse<Company>>('/companies?pageSize=200');
-      setCompanies(res.data || []);
+      const res = await apiGet<Company[]>('/companies?pageSize=200');
+      setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch {
       setCompanies([]);
     }

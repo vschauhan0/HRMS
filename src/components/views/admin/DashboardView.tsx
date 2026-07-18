@@ -13,10 +13,17 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { useAuthStore } from '@/store/auth-store';
 import { apiGet } from '@/lib/api-client';
-import type { DashboardStats } from '@/types';
+import type { DashboardStats, Company } from '@/types';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -48,14 +55,35 @@ function StatCard({ icon, value, label, colorClass }: StatCardProps) {
 export default function DashboardView() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuthStore();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyFilter, setCompanyFilter] = useState<string>('ALL');
+  const { user, isSuperAdmin } = useAuthStore();
 
-  const userName = user?.adminProfile?.name || user?.email || 'Admin';
+  const userName = user?.adminProfile?.name || user?.employee
+    ? `${user.employee.firstName} ${user.employee.lastName}`
+    : user?.email || 'Admin';
 
+  // Fetch companies for super admin
+  useEffect(() => {
+    if (isSuperAdmin()) {
+      apiGet<Company[]>('/companies').then((res) => {
+        // API returns flat array after unwrap
+        setCompanies(Array.isArray(res) ? res : []);
+      }).catch(() => {});
+    }
+  }, [isSuperAdmin]);
+
+  // Fetch dashboard stats
   useEffect(() => {
     async function fetchData() {
+      setLoading(true);
       try {
-        const data = await apiGet<DashboardStats>('/reports/dashboard');
+        const params = new URLSearchParams();
+        if (companyFilter !== 'ALL') {
+          params.set('companyId', companyFilter);
+        }
+        const query = params.toString() ? `?${params.toString()}` : '';
+        const data = await apiGet<DashboardStats>(`/reports/dashboard${query}`);
         setStats(data);
       } catch {
         // silently fail, show zeros
@@ -64,7 +92,7 @@ export default function DashboardView() {
       }
     }
     fetchData();
-  }, []);
+  }, [companyFilter]);
 
   const statCards = stats
     ? [
@@ -138,9 +166,31 @@ export default function DashboardView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {userName}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back, {userName}</p>
+        </div>
+
+        {/* Company filter - Super Admin only */}
+        {isSuperAdmin() && companies.length > 0 && (
+          <Select
+            value={companyFilter}
+            onValueChange={setCompanyFilter}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Companies</SelectItem>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

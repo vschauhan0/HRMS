@@ -72,16 +72,16 @@ export default function EmployeeListView() {
         const companyId =
           companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
         if (companyId) {
-          const res = await apiGet<PaginatedResponse<Branch>>(
+          const res = await apiGet<Branch[]>(
             `/branches?companyId=${companyId}&pageSize=100`
           );
-          setBranches(res.data || []);
+          setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
         }
         if (isSuperAdmin()) {
-          const cRes = await apiGet<PaginatedResponse<Company>>(
+          const cRes = await apiGet<Company[]>(
             '/companies?pageSize=100'
           );
-          setCompanies(cRes.data || []);
+          setCompanies(Array.isArray(cRes) ? cRes : (cRes as any)?.data || []);
         }
       } catch {
         // silent
@@ -256,6 +256,9 @@ export default function EmployeeListView() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
+                  {isSuperAdmin() && companyFilter === 'ALL' && (
+                    <TableHead className="hidden lg:table-cell">Company</TableHead>
+                  )}
                   <TableHead className="hidden lg:table-cell">Email</TableHead>
                   <TableHead className="hidden xl:table-cell">Mobile</TableHead>
                   <TableHead className="hidden lg:table-cell">Branch</TableHead>
@@ -271,6 +274,11 @@ export default function EmployeeListView() {
                     <TableCell className="font-medium">
                       {emp.firstName} {emp.lastName}
                     </TableCell>
+                    {isSuperAdmin() && companyFilter === 'ALL' && (
+                      <TableCell className="hidden lg:table-cell text-sm">
+                        {emp.company?.name || '-'}
+                      </TableCell>
+                    )}
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {emp.email}
                     </TableCell>
@@ -369,6 +377,12 @@ export default function EmployeeListView() {
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
+                    {isSuperAdmin() && companyFilter === 'ALL' && (
+                      <div>
+                        <p className="text-muted-foreground">Company</p>
+                        <p>{emp.company?.name || '-'}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-muted-foreground">Email</p>
                       <p className="truncate">{emp.email}</p>

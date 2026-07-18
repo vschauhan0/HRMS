@@ -39,8 +39,8 @@ export default function CompanyListView() {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await apiGet<PaginatedResponse<Company>>('/companies?pageSize=200');
-      setCompanies(res.data || []);
+      const res = await apiGet<Company[]>('/companies?pageSize=200');
+      setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch {
       setCompanies([]);
     } finally {

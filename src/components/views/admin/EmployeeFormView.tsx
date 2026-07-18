@@ -83,10 +83,10 @@ export default function EmployeeFormView() {
   useEffect(() => {
     async function fetchBranches() {
       try {
-        const res = await apiGet<{ data: Branch[] }>(
+        const res = await apiGet<Branch[]>(
           `/branches?companyId=${selectedCompanyId}&pageSize=100`
         );
-        setBranches(res.data || []);
+        setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
       } catch {
         setBranches([]);
       }
@@ -100,8 +100,8 @@ export default function EmployeeFormView() {
   useEffect(() => {
     async function fetchCompanies() {
       try {
-        const res = await apiGet<{ data: Company[] }>('/companies?pageSize=100');
-        setCompanies(res.data || []);
+        const res = await apiGet<Company[]>('/companies?pageSize=100');
+        setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
       } catch {
         setCompanies([]);
       }

@@ -29,9 +29,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const queryCompanyId = searchParams.get('companyId') || '';
+
     const companyWhere: any = {};
     if (user.role === 'ADMIN') {
       companyWhere.id = user.adminProfile!.companyId;
+    } else if (user.role === 'SUPER_ADMIN' && queryCompanyId) {
+      companyWhere.id = queryCompanyId;
     }
 
     const [
@@ -48,19 +53,19 @@ export async function GET(request: NextRequest) {
       db.employee.count({ where: { company: companyWhere, status: 'PENDING' } }),
       db.employee.count({ where: { company: companyWhere, status: 'RESIGNED' } }),
       db.salaryBatch.count({
-        where: user.role === 'ADMIN'
-          ? { companyId: user.adminProfile!.companyId }
+        where: companyWhere.id
+          ? { companyId: companyWhere.id }
           : {},
       }),
       db.appointmentForm.count({
         where: {
-          ...(user.role === 'ADMIN' ? { companyId: user.adminProfile!.companyId } : {}),
+          ...(companyWhere.id ? { companyId: companyWhere.id } : {}),
           status: 'PENDING',
         },
       }),
       db.form16Document.count({
-        where: user.role === 'ADMIN'
-          ? { employee: { companyId: user.adminProfile!.companyId } }
+        where: companyWhere.id
+          ? { employee: { companyId: companyWhere.id } }
           : {},
       }),
     ]);

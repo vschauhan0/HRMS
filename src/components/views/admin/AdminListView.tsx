@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api-client';
-import type { AdminProfile, Company, PaginatedResponse } from '@/types';
+import type { AdminProfile, Company } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,8 +62,8 @@ export default function AdminListView() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await apiGet<PaginatedResponse<Company>>('/companies');
-      setCompanies(res.data || []);
+      const res = await apiGet<Company[]>('/companies');
+      setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch {
       setCompanies([]);
     }

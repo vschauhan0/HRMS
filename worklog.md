@@ -114,3 +114,32 @@ Stage Summary:
 - All UI/UX polish issues resolved across 15+ files
 - Lint: 0 errors, Server: 0 compilation errors
 - Browser-verified: Login, Dashboard, Employees, Form16, Add Employee, Bottom Nav, Mobile Sidebar
+---
+Task ID: 6
+Agent: Main Agent
+Task: Enforce RBAC rules - multi-company data scoping, role-based access
+
+Work Log:
+- Audited all existing code: schema, 36+ API routes, 26+ view components, stores
+- Fixed backend: Dashboard API now accepts `companyId` query param for super admin filtering (reports/dashboard/route.ts)
+- Fixed backend: Login API now returns `adminProfile.name` and `adminProfile.mobile` (auth/login/route.ts)
+- Fixed frontend: DashboardView added company filter dropdown for super admin (mixed or company-wise view)
+- Fixed frontend: EmployeeListView - fixed flat array bug for companies/branches API responses, added Company column for super admin "All Companies" view
+- Fixed frontend: EmployeeFormView - same flat array bug fix for companies/branches
+- Fixed frontend: AdminListView - same flat array bug fix for companies
+- Fixed frontend: CompanyListView, BranchListView, SalaryView - same flat array bug
+- Fixed frontend: AppointmentFormView - fixed broken branch fetch URL (was using non-existent route)
+- Fixed frontend: AppTopbar - role display now shows "Super Admin"/"Admin"/"Employee" instead of raw role values
+- Added `prisma.seed` script and config to package.json
+- Ran `db:push` and `db:seed` successfully - 2 companies, 4 branches, 3 admins, 7 employees seeded
+- Ran ESLint: 0 errors
+- Verified all RBAC rules via comprehensive API testing
+
+Stage Summary:
+- **RBAC Rules Enforced:**
+  - Super Admin: sees all data across both companies, can filter by company, can create admins + employees
+  - Company Admin: sees only own company data, can only create employees in own company, blocked from companies/admins APIs (403)
+  - Employee: sees only own data
+- **Default Data:** 2 companies (Nidhi Impex, Silver Star), 4 branches (Shreeji, Ichhapore for NI; Daduk, Ichhapore for SS)
+- **Bug Fixes:** Fixed 7 views with flat array response handling, 1 broken API URL, added prisma seed config
+- **New Features:** Dashboard company filter for super admin, Company column in employee list

@@ -53,7 +53,7 @@ export function AppSidebar() {
     { label: 'Settings', icon: Settings, page: 'settings' },
   ];
 
-  const navItems = isSuperAdmin ? superAdminNavItems : adminNavItems;
+  const navItems = isSuperAdmin() ? superAdminNavItems : adminNavItems;
 
   return (
     <aside
@@ -71,7 +71,7 @@ export function AppSidebar() {
           <div className="overflow-hidden">
             <h1 className="font-semibold text-sm truncate">Salary Portal</h1>
             <p className="text-xs text-muted-foreground truncate">
-              {isSuperAdmin ? 'Super Admin' : user?.adminProfile?.company?.name || 'Admin'}
+              {isSuperAdmin() ? 'Super Admin' : user?.adminProfile?.company?.name || 'Admin'}
             </p>
           </div>
         )}

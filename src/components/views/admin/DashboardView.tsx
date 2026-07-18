@@ -59,9 +59,9 @@ export default function DashboardView() {
   const [companyFilter, setCompanyFilter] = useState<string>('ALL');
   const { user, isSuperAdmin } = useAuthStore();
 
-  const userName = user?.adminProfile?.name || user?.employee
-    ? `${user.employee.firstName} ${user.employee.lastName}`
-    : user?.email || 'Admin';
+  const userName = user?.adminProfile?.name
+    || (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : null)
+    || user?.email || 'Admin';
 
   // Fetch companies for super admin
   useEffect(() => {

@@ -143,3 +143,27 @@ Stage Summary:
 - **Default Data:** 2 companies (Nidhi Impex, Silver Star), 4 branches (Shreeji, Ichhapore for NI; Daduk, Ichhapore for SS)
 - **Bug Fixes:** Fixed 7 views with flat array response handling, 1 broken API URL, added prisma seed config
 - **New Features:** Dashboard company filter for super admin, Company column in employee list
+---
+Task ID: 6-verify
+Agent: Main Agent
+Task: Browser verification of RBAC + bug fixes found during verification
+
+Work Log:
+- Built production version (dev server Turbopack crashes in sandbox environment)
+- Discovered and fixed critical bug: DashboardView.tsx userName had operator precedence error causing null dereference for company admins (`user?.adminProfile?.name || user?.employee ? ... : ...` → tried to access null.employee)
+- Discovered and fixed critical bug: AppSidebar.tsx used `isSuperAdmin` (function reference, always truthy) instead of `isSuperAdmin()` in 2 places — sidebar always showed super admin nav for all users
+- Verified via Agent Browser (production mode through Caddy gateway):
+  - Super Admin login → Dashboard with "All Companies" filter, 7 employees across both companies, Companies/Branches/Admins in nav
+  - Super Admin Employees → Shows Company column (Silver Star, Nidhi Impex), "All Companies" filter dropdown
+  - Super Admin Admins → Shows "Manage admin accounts", "Add Admin" button, both admins with company names
+  - Company Admin (Nidhi Impex) login → Dashboard shows "Welcome back, Nidhi Impex Admin", NO company filter, stats scoped to 6 NI employees
+  - Company Admin sidebar → Shows "Nidhi Impex" (not "Super Admin"), NO Companies/Branches/Admins nav items
+  - Company Admin Employees → Shows 6 NI employees only, NO Company column, NO company filter
+  - Backend RBAC verified: /companies and /admins return 403 "Super admin only" for company admin
+  - /employees correctly scoped by admin's company regardless of query params
+- Rebuilt production, lint clean (0 errors)
+
+Stage Summary:
+- 2 critical bugs fixed: DashboardView userName crash, AppSidebar isSuperAdmin function reference bug
+- Full RBAC verified end-to-end via browser for both Super Admin and Company Admin roles
+- Production build stable and functional

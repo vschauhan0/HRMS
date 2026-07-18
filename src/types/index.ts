@@ -1,0 +1,283 @@
+// Roles
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE';
+
+// Employee Status
+export type EmployeeStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'RESIGNED';
+
+// Application Status
+export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+// Company
+export interface Company {
+  id: string;
+  name: string;
+  code: string;
+  status: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Branch
+export interface Branch {
+  id: string;
+  companyId: string;
+  name: string;
+  code: string;
+  status: boolean;
+  createdAt: string;
+  updatedAt: string;
+  company?: Company;
+}
+
+// Admin Profile
+export interface AdminProfile {
+  id: string;
+  userId: string;
+  companyId: string;
+  name: string;
+  mobile: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company?: Company;
+}
+
+// Employee
+export interface Employee {
+  id: string;
+  companyId: string;
+  branchId: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  pan: string | null;
+  joiningDate: string;
+  department: string | null;
+  designation: string | null;
+  status: EmployeeStatus;
+  profilePhoto: string | null;
+  address: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company?: Company;
+  branch?: Branch;
+  bankDetail?: EmployeeBankDetail;
+}
+
+// Employee Bank Detail
+export interface EmployeeBankDetail {
+  id: string;
+  employeeId: string;
+  bankName: string;
+  accountNumber: string;
+  ifsc: string;
+  accountHolder: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Appointment Form
+export interface AppointmentForm {
+  id: string;
+  applicationNo: string;
+  fullName: string;
+  email: string;
+  mobile: string;
+  companyId: string;
+  branchId: string;
+  status: ApplicationStatus;
+  documentPath: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company?: Company;
+  branch?: Branch;
+}
+
+// Salary Batch
+export interface SalaryBatch {
+  id: string;
+  companyId: string;
+  branchId: string;
+  month: number;
+  year: number;
+  uploadedBy: string;
+  fileName: string;
+  importedRecords: number;
+  createdAt: string;
+  updatedAt: string;
+  company?: Company;
+  branch?: Branch;
+}
+
+// Salary Slip
+export interface SalarySlip {
+  id: string;
+  batchId: string;
+  employeeId: string;
+  month: number;
+  year: number;
+  grossSalary: number;
+  totalDeduction: number;
+  netSalary: number;
+  basicSalary: number | null;
+  hra: number | null;
+  da: number | null;
+  conveyance: number | null;
+  medical: number | null;
+  specialAllow: number | null;
+  pf: number | null;
+  esi: number | null;
+  tds: number | null;
+  professionalTax: number | null;
+  otherDeduction: number | null;
+  pdfPath: string | null;
+  createdAt: string;
+  updatedAt: string;
+  batch?: SalaryBatch;
+  employee?: Employee;
+}
+
+// Form16 Document
+export interface Form16Document {
+  id: string;
+  employeeId: string;
+  financialYear: string;
+  filePath: string;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Audit Log
+export interface AuditLog {
+  id: string;
+  userId: string | null;
+  action: string;
+  module: string;
+  details: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+// User (for auth)
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: Role;
+  employeeId: string | null;
+  adminProfile?: AdminProfile & { company: Company };
+  employee?: Employee;
+}
+
+// Navigation pages for the SPA
+export type PageRoute =
+  // Public
+  | 'login'
+  | 'register-step-1'
+  | 'register-step-2'
+  | 'register-step-3'
+  | 'forgot-password'
+  | 'appointment-form'
+  | 'track-application'
+  // Admin
+  | 'admin-dashboard'
+  | 'employees'
+  | 'employee-add'
+  | 'employee-edit'
+  | 'employee-import'
+  | 'salary'
+  | 'salary-upload'
+  | 'salary-batch-detail'
+  | 'salary-slips'
+  | 'form16'
+  | 'form16-upload'
+  | 'appointments'
+  | 'appointment-detail'
+  | 'reports'
+  | 'settings'
+  // Super Admin
+  | 'companies'
+  | 'branches'
+  | 'admins'
+  | 'admin-add'
+  // Employee
+  | 'employee-dashboard'
+  | 'my-salary'
+  | 'my-form16'
+  | 'my-profile'
+  | 'change-password';
+
+// Pagination
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+// API Response
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  errors?: string[];
+}
+
+// Import Result
+export interface ImportResult {
+  newRecords: number;
+  updatedRecords: number;
+  invalidRecords: number;
+  errors: { row: number; message: string }[];
+}
+
+// Dashboard Stats
+export interface DashboardStats {
+  totalEmployees: number;
+  pendingRegistrations: number;
+  activeEmployees: number;
+  resignedEmployees: number;
+  inactiveEmployees?: number;
+  salaryBatches: number;
+  pendingAppointments: number;
+  totalForm16: number;
+}
+
+// Salary Import Row (from Excel)
+export interface SalaryImportRow {
+  employeeCode: string;
+  grossSalary: number;
+  totalDeduction: number;
+  netSalary: number;
+  basicSalary?: number;
+  hra?: number;
+  da?: number;
+  conveyance?: number;
+  medical?: number;
+  specialAllow?: number;
+  pf?: number;
+  esi?: number;
+  tds?: number;
+  professionalTax?: number;
+  otherDeduction?: number;
+}
+
+// Employee Import Row
+export interface EmployeeImportRow {
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  pan?: string;
+  joiningDate: string;
+  department?: string;
+  designation?: string;
+  branchCode: string;
+}

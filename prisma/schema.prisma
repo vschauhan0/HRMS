@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== COMPANIES ====================
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches           Branch[]
+  employees          Employee[]
+  appointmentForms   AppointmentForm[]
+  salaryBatches      SalaryBatch[]
+  admins             AdminProfile[]
+}
+
+// ==================== BRANCHES ====================
+
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  code      String
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees        Employee[]
+  appointmentForms AppointmentForm[]
+  salaryBatches    SalaryBatch[]
+
+  @@unique([companyId, code])
+}
+
+// ==================== USERS (Authentication) ====================
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String?
+  role       String   @default("EMPLOYEE") // SUPER_ADMIN, ADMIN, EMPLOYEE
+  employeeId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee        Employee?        @relation(fields: [employeeId], references: [id])
+  adminProfile    AdminProfile?
+  auditLogs       AuditLog[]
+  uploadedForm16  Form16Document[] @relation("Uploader")
+  uploadedBatches SalaryBatch[]
+}
+
+// ==================== ADMIN PROFILES ====================
+
+model AdminProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  companyId  String
+  name       String
+  mobile     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+// ==================== EMPLOYEES ====================
+
+model Employee {
+  id              String   @id @default(cuid())
+  companyId       String
+  branchId        String
+  employeeCode    String   @unique
+  firstName       String
+  lastName        String
+  email           String
+  mobile          String
+  pan             String?
+  joiningDate     DateTime
+  department      String?
+  designation     String?
+  status          String   @default("PENDING") // PENDING, ACTIVE, INACTIVE, RESIGNED
+  profilePhoto    String?
+  address         String?
+  appointmentFormId String? @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company         Company             @relation(fields: [companyId], references: [id])
+  branch          Branch              @relation(fields: [branchId], references: [id])
+  bankDetail      EmployeeBankDetail?
+  salarySlips     SalarySlip[]
+  form16Documents Form16Document[]
+  user            User?
+  appointmentForm AppointmentForm?    @relation(fields: [appointmentFormId], references: [id])
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([status])
+  @@index([email])
+  @@index([mobile])
+  @@index([employeeCode])
+}
+
+// ==================== EMPLOYEE BANK DETAILS ====================
+
+model EmployeeBankDetail {
+  id            String   @id @default(cuid())
+  employeeId    String   @unique
+  bankName      String
+  accountNumber String
+  ifsc          String
+  accountHolder String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+// ==================== APPOINTMENT FORMS ====================
+
+model AppointmentForm {
+  id              String    @id @default(cuid())
+  applicationNo   String    @unique
+  fullName        String
+  email           String
+  mobile          String
+  companyId       String
+  branchId        String
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  documentPath    String?
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  employee Employee? 
+}
+
+// ==================== SALARY BATCHES ====================
+
+model SalaryBatch {
+  id              String   @id @default(cuid())
+  companyId       String
+  branchId        String
+  month           Int
+  year            Int
+  uploadedBy      String
+  fileName        String
+  importedRecords Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  branch      Branch       @relation(fields: [branchId], references: [id])
+  uploader    User         @relation(fields: [uploadedBy], references: [id])
+  salarySlips SalarySlip[]
+}
+
+// ==================== SALARY SLIPS ====================
+
+model SalarySlip {
+  id              String   @id @default(cuid())
+  batchId         String
+  employeeId      String
+  month           Int
+  year            Int
+  grossSalary     Float
+  totalDeduction  Float    @default(0)
+  netSalary       Float
+  basicSalary     Float?
+  hra             Float?
+  da              Float?
+  conveyance      Float?
+  medical         Float?
+  specialAllow    Float?
+  pf              Float?
+  esi             Float?
+  tds             Float?
+  professionalTax Float?
+  otherDeduction  Float?
+  pdfPath         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  batch    SalaryBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  employee Employee    @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month])
+  @@index([year])
+}
+
+// ==================== FORM 16 DOCUMENTS ====================
+
+model Form16Document {
+  id            String   @id @default(cuid())
+  employeeId    String
+  financialYear String
+  filePath      String
+  uploadedBy    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploader  User     @relation("Uploader", fields: [uploadedBy], references: [id])
+
+  @@unique([employeeId, financialYear])
+  @@index([employeeId])
+}
+
+// ==================== AUDIT LOGS ====================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  module    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+}
+
+// ==================== OTP STORE ====================
+
+model OtpStore {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  purpose   String   // REGISTRATION, PASSWORD_RESET
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ==================== SETTINGS ====================
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

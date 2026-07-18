@@ -33,8 +33,10 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { ShieldCheck, Plus, Phone, Mail, UserCircle } from 'lucide-react';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function AdminListView() {
+  const { selectedCompany } = useAuthStore();
   const [admins, setAdmins] = useState<(AdminProfile & { company?: Company; email?: string })[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,9 @@ export default function AdminListView() {
   const fetchAdmins = async () => {
     setLoading(true);
     try {
-      const res = await apiGet<(AdminProfile & { company?: Company; email?: string })[]>('/admins');
+      const params = new URLSearchParams();
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
+      const res = await apiGet<(AdminProfile & { company?: Company; email?: string })[]>(`/admins?${params.toString()}`);
       setAdmins(res || []);
     } catch {
       setAdmins([]);
@@ -72,7 +76,7 @@ export default function AdminListView() {
   useEffect(() => {
     fetchAdmins();
     fetchCompanies();
-  }, []);
+  }, [selectedCompany]);
 
   const handleCreate = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !companyId) {

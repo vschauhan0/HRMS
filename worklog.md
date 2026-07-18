@@ -189,3 +189,32 @@ Stage Summary:
 - 13+ CSS animations, glassmorphism, gradient mesh backgrounds
 - Framer Motion page transitions, staggered card entrances, count-up numbers
 - Lint clean, production build successful, browser verified
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Company switcher with themed accents + branch nesting under company
+
+Work Log:
+- Added `themeColor` field to Company model in Prisma schema (default '#0f172a')
+- Updated seed: Nidhi Impex → teal (#0d9488), Silver Star → amber (#d97706)
+- Pushed schema to DB and re-seeded successfully
+- Added `themeColor` to Company TypeScript type
+- Created `CompanyThemeProvider` component that sets CSS custom properties (--company-accent, --company-accent-light, --company-accent-medium, --company-accent-strong) on document.documentElement when selectedCompany changes
+- Created `CompanySwitcher` component: pill-style buttons with colored dots for each company + "All" option, only visible to Super Admin, auto-selects first company on load
+- Updated `AppTopbar`: added company accent bar (3px colored strip at top), company switcher centered in topbar (desktop) / below topbar (mobile), updated mobile sheet brand to show company color and initials
+- Updated `AppSidebar`: brand area now shows company name + colored dot, logo box uses company theme color, active nav item background uses company theme color, active indicator bar uses company theme color
+- Updated `page.tsx`: wrapped app in CompanyThemeProvider, added accent bar for company admins
+- Added company theme CSS: .company-accent-bar, .company-brand-dot, .company-pill styles
+- Updated companies API to return themeColor field
+- Removed redundant local company filter from DashboardView, EmployeeListView, SalaryView (all now use global selectedCompany)
+- Updated 6 additional views to respect selectedCompany: AppointmentListView, AdminListView, Form16View, SalarySlipsView, ReportsView (4 sub-tabs), BranchListView
+- ESLint: 0 errors, Production build: successful
+
+Stage Summary:
+- Company switcher (pill-style) appears in topbar for Super Admin with colored dots per company
+- Switching company instantly updates: accent bar color, sidebar brand color, active nav highlights, all data filtering
+- Nidhi Impex theme: teal (#0d9488), Silver Star theme: amber (#d97706)
+- Company Admin users see their company's accent color automatically (no switcher)
+- All admin views (Dashboard, Employees, Salary, Appointments, Form16, Reports, Admins, Branches) filter by selectedCompany
+- Branches are already properly nested under companies in schema (companyId FK)

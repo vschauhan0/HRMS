@@ -9,14 +9,14 @@ async function seed() {
   // Create Companies
   const nidhiImpex = await prisma.company.upsert({
     where: { code: 'NI' },
-    update: {},
-    create: { name: 'Nidhi Impex', code: 'NI', status: true },
+    update: { themeColor: '#0d9488' },
+    create: { name: 'Nidhi Impex', code: 'NI', themeColor: '#0d9488', status: true },
   });
 
   const silverStar = await prisma.company.upsert({
     where: { code: 'SS' },
-    update: {},
-    create: { name: 'Silver Star', code: 'SS', status: true },
+    update: { themeColor: '#d97706' },
+    create: { name: 'Silver Star', code: 'SS', themeColor: '#d97706', status: true },
   });
 
   console.log('✅ Companies created');

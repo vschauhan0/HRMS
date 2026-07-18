@@ -24,8 +24,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiGet } from '@/lib/api-client';
 import { MONTHS, MONTHS_SHORT, PAGE_SIZE } from '@/lib/constants';
 import type { SalarySlip, PaginatedResponse } from '@/types';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function SalarySlipsView() {
+  const { selectedCompany } = useAuthStore();
   const [slips, setSlips] = useState<SalarySlip[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -59,6 +61,7 @@ export default function SalarySlipsView() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (monthFilter !== 'ALL') params.set('month', monthFilter);
       if (yearFilter !== 'ALL') params.set('year', yearFilter);
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
 
       const res = await apiGet<PaginatedResponse<SalarySlip>>(
         `/salary/slips?${params.toString()}`
@@ -71,7 +74,7 @@ export default function SalarySlipsView() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, monthFilter, yearFilter, page]);
+  }, [debouncedSearch, monthFilter, yearFilter, page, selectedCompany]);
 
   useEffect(() => {
     fetchSlips();

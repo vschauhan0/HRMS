@@ -33,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Employee, Branch, Company, PaginatedResponse } from '@/types';
+import type { Employee, Branch, PaginatedResponse } from '@/types';
 
 export default function EmployeeListView() {
   const navigate = useNavStore((s) => s.navigate);
@@ -48,13 +48,9 @@ export default function EmployeeListView() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [branchFilter, setBranchFilter] = useState('ALL');
-  const [companyFilter, setCompanyFilter] = useState<string>(
-    selectedCompany?.id || 'ALL'
-  );
   const [page, setPage] = useState(1);
 
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
 
   // Debounce search
   useEffect(() => {
@@ -65,30 +61,24 @@ export default function EmployeeListView() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch branches/companies
+  // Fetch branches for selected company
   useEffect(() => {
-    async function fetchLookups() {
+    async function fetchBranches() {
       try {
-        const companyId =
-          companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
-        if (companyId) {
+        if (selectedCompany?.id) {
           const res = await apiGet<Branch[]>(
-            `/branches?companyId=${companyId}&pageSize=100`
+            `/branches?companyId=${selectedCompany.id}&pageSize=100`
           );
           setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
-        }
-        if (isSuperAdmin()) {
-          const cRes = await apiGet<Company[]>(
-            '/companies?pageSize=100'
-          );
-          setCompanies(Array.isArray(cRes) ? cRes : (cRes as any)?.data || []);
+        } else {
+          setBranches([]);
         }
       } catch {
-        // silent
+        setBranches([]);
       }
     }
-    fetchLookups();
-  }, [companyFilter, selectedCompany, isSuperAdmin]);
+    fetchBranches();
+  }, [selectedCompany]);
 
   // Fetch employees
   const fetchEmployees = useCallback(async () => {
@@ -100,9 +90,7 @@ export default function EmployeeListView() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
       if (branchFilter !== 'ALL') params.set('branchId', branchFilter);
-      const companyId =
-        companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
-      if (companyId) params.set('companyId', companyId);
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
 
       const res = await apiGet<PaginatedResponse<Employee>>(
         `/employees?${params.toString()}`
@@ -115,7 +103,7 @@ export default function EmployeeListView() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, branchFilter, companyFilter, page, selectedCompany]);
+  }, [debouncedSearch, statusFilter, branchFilter, page, selectedCompany]);
 
   useEffect(() => {
     fetchEmployees();
@@ -136,9 +124,7 @@ export default function EmployeeListView() {
     if (debouncedSearch) params.set('search', debouncedSearch);
     if (statusFilter !== 'ALL') params.set('status', statusFilter);
     if (branchFilter !== 'ALL') params.set('branchId', branchFilter);
-    const companyId =
-      companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
-    if (companyId) params.set('companyId', companyId);
+    if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
     window.open(`/api/v1/employees/export?${params.toString()}`, '_blank');
   }
 
@@ -210,28 +196,7 @@ export default function EmployeeListView() {
           </SelectContent>
         </Select>
 
-        {isSuperAdmin() && companies.length > 0 && (
-          <Select
-            value={companyFilter}
-            onValueChange={(v) => {
-              setCompanyFilter(v);
-              setBranchFilter('ALL');
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Companies</SelectItem>
-              {companies.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+
       </div>
 
       {/* Desktop Table */}
@@ -256,7 +221,7 @@ export default function EmployeeListView() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
-                  {isSuperAdmin() && companyFilter === 'ALL' && (
+                  {isSuperAdmin() && !selectedCompany && (
                     <TableHead className="hidden lg:table-cell">Company</TableHead>
                   )}
                   <TableHead className="hidden lg:table-cell">Email</TableHead>
@@ -274,7 +239,7 @@ export default function EmployeeListView() {
                     <TableCell className="font-medium">
                       {emp.firstName} {emp.lastName}
                     </TableCell>
-                    {isSuperAdmin() && companyFilter === 'ALL' && (
+                    {isSuperAdmin() && !selectedCompany && (
                       <TableCell className="hidden lg:table-cell text-sm">
                         {emp.company?.name || '-'}
                       </TableCell>
@@ -377,7 +342,7 @@ export default function EmployeeListView() {
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    {isSuperAdmin() && companyFilter === 'ALL' && (
+                    {isSuperAdmin() && !selectedCompany && (
                       <div>
                         <p className="text-muted-foreground">Company</p>
                         <p>{emp.company?.name || '-'}</p>

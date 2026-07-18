@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         id: c.id,
         name: c.name,
         code: c.code,
+        themeColor: c.themeColor,
         status: c.status,
         branchCount: c._count.branches,
         employeeCount: c._count.employees,

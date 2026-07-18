@@ -35,6 +35,7 @@ import {
   CalendarCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/auth-store';
 
 const MONTHS = [
   '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -55,6 +56,7 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
 
 // --- Employee Report Tab ---
 function EmployeeReportTab() {
+  const { selectedCompany } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -67,6 +69,7 @@ function EmployeeReportTab() {
       params.set('pageSize', '200');
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (deptFilter !== 'all') params.set('department', deptFilter);
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
       const res = await apiGet<PaginatedResponse<Employee>>(`/reports/employees?${params.toString()}`);
       setEmployees(res.data || []);
     } catch {
@@ -74,7 +77,7 @@ function EmployeeReportTab() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, deptFilter]);
+  }, [statusFilter, deptFilter, selectedCompany]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -252,6 +255,7 @@ interface SalarySummaryRow {
 }
 
 function SalaryReportTab() {
+  const { selectedCompany } = useAuthStore();
   const [data, setData] = useState<SalarySummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
@@ -260,7 +264,10 @@ function SalaryReportTab() {
     async function fetchSalaryReport() {
       setLoading(true);
       try {
-        const res = await apiGet<SalarySummaryRow[]>(`/reports/salary?year=${selectedYear}`);
+        const params = new URLSearchParams();
+        params.set('year', selectedYear);
+        if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
+        const res = await apiGet<SalarySummaryRow[]>(`/reports/salary?${params.toString()}`);
         setData(res || []);
       } catch {
         setData([]);
@@ -269,7 +276,7 @@ function SalaryReportTab() {
       }
     }
     fetchSalaryReport();
-  }, [selectedYear]);
+  }, [selectedYear, selectedCompany]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
@@ -338,6 +345,7 @@ function SalaryReportTab() {
 
 // --- Registrations Tab ---
 function RegistrationsTab() {
+  const { selectedCompany } = useAuthStore();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -345,7 +353,11 @@ function RegistrationsTab() {
     async function fetchPending() {
       setLoading(true);
       try {
-        const res = await apiGet<PaginatedResponse<Employee>>('/employees?status=PENDING&pageSize=200');
+        const params = new URLSearchParams();
+        params.set('status', 'PENDING');
+        params.set('pageSize', '200');
+        if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
+        const res = await apiGet<PaginatedResponse<Employee>>(`/employees?${params.toString()}`);
         setEmployees(res.data || []);
       } catch {
         setEmployees([]);
@@ -354,7 +366,7 @@ function RegistrationsTab() {
       }
     }
     fetchPending();
-  }, []);
+  }, [selectedCompany]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -408,6 +420,7 @@ function RegistrationsTab() {
 
 // --- Appointments Tab ---
 function AppointmentsTab() {
+  const { selectedCompany } = useAuthStore();
   const [appointments, setAppointments] = useState<AppointmentForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -419,6 +432,7 @@ function AppointmentsTab() {
         const params = new URLSearchParams();
         params.set('pageSize', '200');
         if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
         const res = await apiGet<PaginatedResponse<AppointmentForm>>(`/appointments?${params.toString()}`);
         setAppointments(res.data || []);
       } catch {
@@ -428,7 +442,7 @@ function AppointmentsTab() {
       }
     }
     fetchAppointments();
-  }, [statusFilter]);
+  }, [statusFilter, selectedCompany]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

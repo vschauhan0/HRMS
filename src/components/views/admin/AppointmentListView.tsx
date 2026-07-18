@@ -34,6 +34,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useNavStore } from '@/store/nav-store';
+import { useAuthStore } from '@/store/auth-store';
 import { apiGet, apiPatch } from '@/lib/api-client';
 import { STATUS_COLORS, PAGE_SIZE } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ import type { AppointmentForm, PaginatedResponse } from '@/types';
 
 export default function AppointmentListView() {
   const navigate = useNavStore();
+  const { selectedCompany } = useAuthStore();
 
   const [appointments, setAppointments] = useState<AppointmentForm[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -66,6 +68,7 @@ export default function AppointmentListView() {
       params.set('page', String(page));
       params.set('pageSize', String(PAGE_SIZE));
       if (statusTab !== 'ALL') params.set('status', statusTab);
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
 
       const res = await apiGet<PaginatedResponse<AppointmentForm>>(
         `/appointments?${params.toString()}`
@@ -78,7 +81,7 @@ export default function AppointmentListView() {
     } finally {
       setLoading(false);
     }
-  }, [statusTab, page]);
+  }, [statusTab, page, selectedCompany]);
 
   useEffect(() => {
     fetchAppointments();

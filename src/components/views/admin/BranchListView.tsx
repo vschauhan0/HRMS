@@ -34,15 +34,17 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { GitBranch, Plus, Building2, Filter } from 'lucide-react';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function BranchListView() {
+  const { selectedCompany, isSuperAdmin } = useAuthStore();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Filters
-  const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>(selectedCompany?.id || 'all');
 
   // Dialog form
   const [formCompanyId, setFormCompanyId] = useState('');
@@ -63,7 +65,7 @@ export default function BranchListView() {
     } finally {
       setLoading(false);
     }
-  }, [companyFilter]);
+  }, [companyFilter, selectedCompany]);
 
   const fetchCompanies = async () => {
     try {

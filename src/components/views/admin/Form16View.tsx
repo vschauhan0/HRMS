@@ -33,8 +33,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { apiGet, apiUpload, apiDelete } from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { Form16Document, Employee } from '@/types';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function Form16View() {
+  const { selectedCompany } = useAuthStore();
   const [documents, setDocuments] = useState<Form16Document[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,9 @@ export default function Form16View() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await apiGet<Form16Document[]>('/form16');
+        const params = new URLSearchParams();
+        if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
+        const res = await apiGet<Form16Document[]>(`/form16?${params.toString()}`);
         setDocuments(res || []);
       } catch {
         setDocuments([]);
@@ -66,7 +70,7 @@ export default function Form16View() {
       }
     }
     fetchData();
-  }, []);
+  }, [selectedCompany]);
 
   useEffect(() => {
     async function fetchEmployees() {
@@ -75,8 +79,12 @@ export default function Form16View() {
         return;
       }
       try {
+        const searchParams = new URLSearchParams();
+        searchParams.set('search', employeeSearch);
+        searchParams.set('pageSize', '20');
+        if (selectedCompany?.id) searchParams.set('companyId', selectedCompany.id);
         const res = await apiGet<{ data: Employee[] }>(
-          `/employees?search=${employeeSearch}&pageSize=20`
+          `/employees?${searchParams.toString()}`
         );
         setEmployees(res.data || []);
       } catch {
@@ -85,7 +93,7 @@ export default function Form16View() {
     }
     const timer = setTimeout(fetchEmployees, 300);
     return () => clearTimeout(timer);
-  }, [employeeSearch]);
+  }, [employeeSearch, selectedCompany]);
 
   async function handleUpload() {
     if (!selectedEmployee || !financialYear || !file) {

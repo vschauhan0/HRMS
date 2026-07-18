@@ -12,6 +12,7 @@ export interface Company {
   id: string;
   name: string;
   code: string;
+  themeColor: string;
   status: boolean;
   createdAt: string;
   updatedAt: string;

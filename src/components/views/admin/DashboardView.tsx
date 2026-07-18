@@ -15,17 +15,9 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-
 import { useAuthStore } from '@/store/auth-store';
 import { apiGet } from '@/lib/api-client';
-import type { DashboardStats, Company } from '@/types';
+import type { DashboardStats } from '@/types';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -49,7 +41,6 @@ function AnimatedNumber({ value }: { value: number }) {
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplay(Math.round(start + (end - start) * eased));
 
@@ -101,43 +92,23 @@ function StatCard({ icon, value, label, gradient, delay }: StatCardProps) {
   );
 }
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 16 },
-  show: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { type: 'spring', stiffness: 200, damping: 20, delay: i * 0.04 },
-  }),
-};
-
 export default function DashboardView() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companyFilter, setCompanyFilter] = useState<string>('ALL');
-  const { user, isSuperAdmin } = useAuthStore();
+  const { user, isSuperAdmin, selectedCompany } = useAuthStore();
 
   const userName = user?.adminProfile?.name
     || (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : null)
     || user?.email || 'Admin';
 
-  // Fetch companies for super admin
-  useEffect(() => {
-    if (isSuperAdmin()) {
-      apiGet<Company[]>('/companies').then((res) => {
-        setCompanies(Array.isArray(res) ? res : []);
-      }).catch(() => {});
-    }
-  }, [isSuperAdmin]);
-
-  // Fetch dashboard stats
+  // Fetch dashboard stats based on selectedCompany
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
         const params = new URLSearchParams();
-        if (companyFilter !== 'ALL') {
-          params.set('companyId', companyFilter);
+        if (selectedCompany?.id) {
+          params.set('companyId', selectedCompany.id);
         }
         const query = params.toString() ? `?${params.toString()}` : '';
         const data = await apiGet<DashboardStats>(`/reports/dashboard${query}`);
@@ -149,7 +120,7 @@ export default function DashboardView() {
       }
     }
     fetchData();
-  }, [companyFilter]);
+  }, [selectedCompany]);
 
   const statCards = stats
     ? [
@@ -238,29 +209,12 @@ export default function DashboardView() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight">
             Welcome back, <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text">{userName}</span>
           </h1>
+          {selectedCompany && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Viewing data for <span className="font-medium" style={{ color: selectedCompany.themeColor }}>{selectedCompany.name}</span>
+            </p>
+          )}
         </div>
-
-        {isSuperAdmin() && companies.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="h-9 w-[220px] rounded-xl border-border/50 bg-card/50 backdrop-blur-sm">
-                <SelectValue placeholder="All Companies" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Companies</SelectItem>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </motion.div>
-        )}
       </motion.div>
 
       {/* Stat Cards */}

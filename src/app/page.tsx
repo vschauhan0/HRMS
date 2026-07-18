@@ -42,6 +42,7 @@ import ChangePasswordView from '@/components/views/employee/ChangePasswordView';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppTopbar } from '@/components/layout/app-topbar';
 import { BottomNav } from '@/components/layout/bottom-nav';
+import { CompanyThemeProvider } from '@/components/layout/company-theme-provider';
 
 const pageTransition = {
   initial: { opacity: 0, y: 8 },
@@ -51,7 +52,7 @@ const pageTransition = {
 };
 
 export default function HomePage() {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout, selectedCompany, isAdmin } = useAuthStore();
   const { currentPage } = useNavStore();
 
   // Public pages (no auth required)
@@ -150,34 +151,44 @@ export default function HomePage() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Desktop/Tablet: Sidebar + Main Content */}
-      <div className="flex flex-1">
-        {/* Sidebar - hidden on mobile */}
-        <AppSidebar />
-        
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Top bar */}
-          <AppTopbar />
-          
-          {/* Page content with transitions */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentPage}
-                {...pageTransition}
-              >
-                {renderPage()}
-              </motion.div>
-            </AnimatePresence>
-          </main>
-        </div>
-      </div>
+  // For company admins, show their company accent
+  const showAccent = isAdmin();
 
-      {/* Bottom Navigation - mobile only */}
-      <BottomNav />
-    </div>
+  return (
+    <CompanyThemeProvider>
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* Company Accent Bar for company admins */}
+        {showAccent && !isEmployee && (
+          <div className="company-accent-bar" />
+        )}
+
+        {/* Desktop/Tablet: Sidebar + Main Content */}
+        <div className="flex flex-1">
+          {/* Sidebar - hidden on mobile */}
+          <AppSidebar />
+          
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col min-h-screen">
+            {/* Top bar */}
+            <AppTopbar />
+            
+            {/* Page content with transitions */}
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentPage}
+                  {...pageTransition}
+                >
+                  {renderPage()}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </div>
+        </div>
+
+        {/* Bottom Navigation - mobile only */}
+        <BottomNav />
+      </div>
+    </CompanyThemeProvider>
   );
 }

@@ -10,12 +10,13 @@ datasource db {
 // ==================== COMPANIES ====================
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  status    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  themeColor String   @default("#0f172a")
+  status     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   branches           Branch[]
   employees          Employee[]

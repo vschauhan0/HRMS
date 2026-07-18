@@ -24,27 +24,23 @@ import { useNavStore } from '@/store/nav-store';
 import { useAuthStore } from '@/store/auth-store';
 import { apiGet } from '@/lib/api-client';
 import { MONTHS, MONTHS_SHORT, PAGE_SIZE } from '@/lib/constants';
-import type { SalaryBatch, Branch, Company, PaginatedResponse } from '@/types';
+import type { SalaryBatch, Branch, PaginatedResponse } from '@/types';
 
 export default function SalaryView() {
   const navigate = useNavStore();
-  const { isSuperAdmin, selectedCompany } = useAuthStore();
+  const { selectedCompany } = useAuthStore();
 
   const [batches, setBatches] = useState<SalaryBatch[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [companyFilter, setCompanyFilter] = useState<string>(
-    selectedCompany?.id || 'ALL'
-  );
   const [branchFilter, setBranchFilter] = useState('ALL');
   const [monthFilter, setMonthFilter] = useState('ALL');
   const [yearFilter, setYearFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
 
   // Generate year options
   const currentYear = new Date().getFullYear();
@@ -53,12 +49,13 @@ export default function SalaryView() {
   // Fetch branches
   useEffect(() => {
     async function fetchBranches() {
-      const companyId =
-        companyFilter !== 'ALL' ? companyFilter : selectedCompany?.id;
-      if (!companyId) return;
+      if (!selectedCompany?.id) {
+        setBranches([]);
+        return;
+      }
       try {
         const res = await apiGet<Branch[]>(
-          `/branches?companyId=${companyId}&pageSize=100`
+          `/branches?companyId=${selectedCompany.id}&pageSize=100`
         );
         setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
       } catch {
@@ -66,23 +63,7 @@ export default function SalaryView() {
       }
     }
     fetchBranches();
-  }, [companyFilter, selectedCompany]);
-
-  // Fetch companies for super admin
-  useEffect(() => {
-    if (!isSuperAdmin()) return;
-    async function fetchCompanies() {
-      try {
-        const res = await apiGet<Company[]>(
-          '/companies?pageSize=100'
-        );
-        setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
-      } catch {
-        setCompanies([]);
-      }
-    }
-    fetchCompanies();
-  }, [isSuperAdmin]);
+  }, [selectedCompany]);
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -90,8 +71,7 @@ export default function SalaryView() {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('pageSize', String(PAGE_SIZE));
-      if (companyFilter !== 'ALL') params.set('companyId', companyFilter);
-      else if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
+      if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
       if (branchFilter !== 'ALL') params.set('branchId', branchFilter);
       if (monthFilter !== 'ALL') params.set('month', monthFilter);
       if (yearFilter !== 'ALL') params.set('year', yearFilter);
@@ -107,7 +87,7 @@ export default function SalaryView() {
     } finally {
       setLoading(false);
     }
-  }, [companyFilter, branchFilter, monthFilter, yearFilter, page, selectedCompany]);
+  }, [branchFilter, monthFilter, yearFilter, page, selectedCompany]);
 
   useEffect(() => {
     fetchBatches();
@@ -125,28 +105,6 @@ export default function SalaryView() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        {isSuperAdmin() && companies.length > 0 && (
-          <Select
-            value={companyFilter}
-            onValueChange={(v) => {
-              setCompanyFilter(v);
-              setBranchFilter('ALL');
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Companies</SelectItem>
-              {companies.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
 
         <Select
           value={branchFilter}

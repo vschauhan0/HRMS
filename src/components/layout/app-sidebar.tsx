@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, Users, Upload, FileText, ClipboardList, 
   BarChart3, Settings, Building2, GitBranch, UserCog,
-  ChevronLeft, ChevronRight, LogOut, Moon, Sun
+  ChevronLeft, ChevronRight, LogOut, Moon, Sun, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -58,76 +58,110 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        'hidden lg:flex flex-col border-r bg-card h-screen sticky top-0 transition-all duration-200',
-        collapsed ? 'w-16' : 'w-64'
+        'hidden lg:flex flex-col h-screen sticky top-0 transition-all duration-300 ease-out',
+        collapsed ? 'w-[68px]' : 'w-[260px]'
       )}
     >
-      {/* Logo / Brand */}
-      <div className="flex items-center gap-3 p-4 border-b">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <span className="text-primary-foreground font-bold text-sm">SP</span>
-        </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <h1 className="font-semibold text-sm truncate">Salary Portal</h1>
-            <p className="text-xs text-muted-foreground truncate">
-              {isSuperAdmin() ? 'Super Admin' : user?.adminProfile?.company?.name || 'Admin'}
-            </p>
+      {/* Subtle border on the right side */}
+      <div className="absolute inset-y-0 right-0 w-px bg-border/50" />
+
+      <div className="flex flex-1 flex-col">
+        {/* Logo / Brand */}
+        <div className={cn(
+          'flex items-center border-b border-border/50 p-4 transition-all duration-300',
+          collapsed ? 'justify-center' : 'gap-3'
+        )}>
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground shadow-sm">
+            <Sparkles className="text-background h-4.5 w-4.5" />
           </div>
-        )}
-      </div>
+          {!collapsed && (
+            <div className="overflow-hidden animate-fade-in">
+              <h1 className="font-semibold text-sm tracking-tight">Salary Portal</h1>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {isSuperAdmin() ? 'Super Admin' : user?.adminProfile?.company?.name || 'Admin'}
+              </p>
+            </div>
+          )}
+        </div>
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1 py-2">
-        <nav className="space-y-1 px-2">
-          {navItems.map((item) => {
-            const isActive = currentPage === item.page;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.page}
-                onClick={() => navigate(item.page as any)}
-                className={cn(
-                  'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-      </ScrollArea>
+        {/* Navigation */}
+        <ScrollArea className="flex-1 py-3">
+          <nav className="space-y-0.5 px-3">
+            {navItems.map((item, index) => {
+              const isActive = currentPage === item.page;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.page}
+                  onClick={() => navigate(item.page as any)}
+                  className={cn(
+                    'group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    collapsed && 'justify-center px-0',
+                    isActive
+                      ? 'text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  {/* Active background */}
+                  {isActive && (
+                    <div className="absolute inset-0 rounded-xl bg-foreground shadow-sm" />
+                  )}
+                  {/* Hover background */}
+                  <div className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-200 group-hover:bg-accent group-hover:opacity-100" 
+                    style={{ opacity: isActive ? 0 : 1 }} 
+                  />
+                  
+                  <Icon className={cn(
+                    'relative h-4.5 w-4.5 shrink-0 transition-transform duration-200',
+                    !isActive && 'group-hover:scale-110'
+                  )} />
+                  {!collapsed && (
+                    <span className="relative truncate">{item.label}</span>
+                  )}
 
-      {/* Footer */}
-      <div className="border-t p-2 space-y-1">
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          title={collapsed ? 'Toggle theme' : undefined}
-        >
-          {theme === 'dark' ? <Sun className="h-4 w-4 flex-shrink-0" /> : <Moon className="h-4 w-4 flex-shrink-0" />}
-          {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
-        </button>
-        <button
-          onClick={() => { logout(); navigate('login'); }}
-          className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-          title={collapsed ? 'Logout' : undefined}
-        >
-          <LogOut className="h-4 w-4 flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-        <Separator className="my-1" />
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent transition-colors"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
+                  {/* Active indicator bar */}
+                  {isActive && !collapsed && (
+                    <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-foreground" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="border-t border-border/50 p-2.5 space-y-0.5">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={cn(
+              'group w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200',
+              collapsed && 'justify-center px-0'
+            )}
+            title={collapsed ? 'Toggle theme' : undefined}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4 shrink-0 transition-transform group-hover:rotate-45 duration-300" /> : <Moon className="h-4 w-4 shrink-0 transition-transform group-hover:-rotate-12 duration-300" />}
+            {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+          </button>
+          <button
+            onClick={() => { logout(); navigate('login'); }}
+            className={cn(
+              'group w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-200',
+              collapsed && 'justify-center px-0'
+            )}
+            title={collapsed ? 'Logout' : undefined}
+          >
+            <LogOut className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5 duration-200" />
+            {!collapsed && <span>Logout</span>}
+          </button>
+          <Separator className="my-1.5 bg-border/50" />
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full flex items-center justify-center rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
     </aside>
   );

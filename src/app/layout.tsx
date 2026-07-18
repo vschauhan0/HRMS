@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/layout/theme-provider";
+import { CustomCursor } from "@/components/layout/custom-cursor";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <CustomCursor />
           {children}
           <Toaster position="top-right" richColors />
         </ThemeProvider>

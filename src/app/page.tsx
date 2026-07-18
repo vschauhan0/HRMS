@@ -2,6 +2,7 @@
 
 import { useAuthStore } from '@/store/auth-store';
 import { useNavStore } from '@/store/nav-store';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { PageRoute } from '@/types';
 
 // Auth Views
@@ -42,6 +43,13 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppTopbar } from '@/components/layout/app-topbar';
 import { BottomNav } from '@/components/layout/bottom-nav';
 
+const pageTransition = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { type: 'spring', stiffness: 300, damping: 30, duration: 0.35 },
+};
+
 export default function HomePage() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const { currentPage } = useNavStore();
@@ -81,7 +89,6 @@ export default function HomePage() {
 
   // Authenticated pages
   const isEmployee = user?.role === 'EMPLOYEE';
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const renderPage = () => {
     if (isEmployee) {
@@ -144,7 +151,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50/50 dark:bg-gray-950">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Desktop/Tablet: Sidebar + Main Content */}
       <div className="flex flex-1">
         {/* Sidebar - hidden on mobile */}
@@ -155,9 +162,16 @@ export default function HomePage() {
           {/* Top bar */}
           <AppTopbar />
           
-          {/* Page content */}
+          {/* Page content with transitions */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
-            {renderPage()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPage}
+                {...pageTransition}
+              >
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
       </div>

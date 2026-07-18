@@ -154,7 +154,7 @@ export function AppTopbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-sm border-b">
+    <header className="sticky top-0 z-40 border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
       <div className="flex items-center justify-between h-14 px-4 sm:px-6">
         {/* Left: Mobile menu + Page title */}
         <div className="flex items-center gap-3">

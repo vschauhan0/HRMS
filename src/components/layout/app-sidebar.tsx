@@ -21,7 +21,7 @@ interface NavItem {
 }
 
 export function AppSidebar() {
-  const { user, logout, isSuperAdmin, selectedCompany } = useAuthStore();
+  const { user, logout, isSuperAdmin } = useAuthStore();
   const { navigate, currentPage } = useNavStore();
   const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
@@ -55,19 +55,6 @@ export function AppSidebar() {
 
   const navItems = isSuperAdmin() ? superAdminNavItems : adminNavItems;
 
-  const companyName = selectedCompany?.name
-    || user?.adminProfile?.company?.name
-    || (isSuperAdmin() ? 'Salary Portal' : 'Admin');
-
-  const brandInitials = companyName
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  const themeColor = selectedCompany?.themeColor || user?.adminProfile?.company?.themeColor;
-
   return (
     <aside
       className={cn(
@@ -75,29 +62,22 @@ export function AppSidebar() {
         collapsed ? 'w-[68px]' : 'w-[260px]'
       )}
     >
-      {/* Subtle border on the right side */}
       <div className="absolute inset-y-0 right-0 w-px bg-border/50" />
 
       <div className="flex flex-1 flex-col">
-        {/* Logo / Brand with company theme */}
+        {/* Logo / Brand */}
         <div className={cn(
           'flex items-center border-b border-border/50 p-4 transition-all duration-300',
           collapsed ? 'justify-center' : 'gap-3'
         )}>
-          <div
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm transition-colors duration-500"
-            style={{
-              backgroundColor: themeColor || 'var(--foreground)',
-            }}
-          >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground shadow-sm">
             <Sparkles className="text-white h-4.5 w-4.5" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden animate-fade-in">
-              <div className="flex items-center gap-2">
-                <h1 className="font-semibold text-sm tracking-tight truncate">{companyName}</h1>
-                {themeColor && <div className="company-brand-dot shrink-0" />}
-              </div>
+              <h1 className="font-semibold text-sm tracking-tight truncate">
+                {isSuperAdmin() ? 'Salary Portal' : user?.adminProfile?.company?.name || 'Salary Portal'}
+              </h1>
               <p className="text-[11px] text-muted-foreground truncate">
                 {isSuperAdmin() ? 'Super Admin' : 'Admin'}
               </p>
@@ -119,24 +99,15 @@ export function AppSidebar() {
                     'group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                     collapsed && 'justify-center px-0',
                     isActive
-                      ? 'text-primary-foreground'
+                      ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  {/* Active background - uses company color when available */}
-                  {isActive && (
-                    <div
-                      className="absolute inset-0 rounded-xl shadow-sm transition-colors duration-500"
-                      style={{
-                        backgroundColor: themeColor || 'var(--foreground)',
-                      }}
-                    />
-                  )}
                   {/* Hover background */}
-                  <div className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-200 group-hover:bg-accent group-hover:opacity-100" 
-                    style={{ opacity: isActive ? 0 : 1 }} 
-                  />
+                  {!isActive && (
+                    <div className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-200 group-hover:bg-accent" />
+                  )}
                   
                   <Icon className={cn(
                     'relative h-4.5 w-4.5 shrink-0 transition-transform duration-200',
@@ -148,12 +119,7 @@ export function AppSidebar() {
 
                   {/* Active indicator bar */}
                   {isActive && !collapsed && (
-                    <div
-                      className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full transition-colors duration-500"
-                      style={{
-                        backgroundColor: themeColor || 'var(--foreground)',
-                      }}
-                    />
+                    <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-primary" />
                   )}
                 </button>
               );

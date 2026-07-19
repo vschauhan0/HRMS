@@ -126,14 +126,8 @@
 }
 
 /* ============================================
-   PREMIUM UI ENHANCEMENTS
+   UI ENHANCEMENTS
    ============================================ */
-
-/* Custom Cursor */
-.custom-cursor-active,
-.custom-cursor-active * {
-  cursor: none !important;
-}
 
 /* Gradient Backgrounds */
 .gradient-mesh {
@@ -446,53 +440,4 @@ html {
 .dark .card-premium:hover {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);}
 
-/* Company Accent Bar */
-.company-accent-bar {
-  height: 3px;
-  background: var(--company-accent, var(--foreground));
-  transition: background-color 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
 
-.company-accent-bar-gradient {
-  height: 3px;
-  background: linear-gradient(90deg, var(--company-accent, var(--foreground)), transparent);
-  transition: background-color 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Company themed sidebar brand */
-.company-brand {
-  transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-.company-brand-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--company-accent, var(--foreground));
-  transition: background-color 0.4s ease;
-  box-shadow: 0 0 8px var(--company-accent-medium, transparent);
-}
-
-/* Company switcher pill */
-.company-pill {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1.5px solid var(--border);
-}
-.company-pill:hover {
-  border-color: var(--company-accent-medium, var(--border));
-}
-.company-pill[data-active="true"] {
-  border-color: var(--company-accent, var(--foreground));
-  background: var(--company-accent-light, var(--muted));
-  box-shadow: 0 0 12px var(--company-accent-light, transparent);
-}
-
-/* Company themed active nav item */
-[data-company] .company-sidebar-active {
-  background: var(--company-accent) !important;
-  color: white !important;
-}
-
-[data-company] .company-sidebar-indicator {
-  background: var(--company-accent) !important;
-}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { apiGet, apiPost } from '@/lib/api-client';
-import type { Branch, Company, PaginatedResponse } from '@/types';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-client';
+import type { Branch, Company } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -32,25 +41,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { GitBranch, Plus, Building2, Filter } from 'lucide-react';
-import { useAuthStore } from '@/store/auth-store';
+import { GitBranch, Plus, Building2, Filter, MoreHorizontal, Pencil, Trash2, Users } from 'lucide-react';
+
+interface BranchWithCounts extends Branch {
+  employeeCount?: number;
+}
 
 export default function BranchListView() {
-  const { selectedCompany, isSuperAdmin } = useAuthStore();
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branches, setBranches] = useState<BranchWithCounts[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Company filter
+  const [companyFilter, setCompanyFilter] = useState<string>('all');
+
+  // Create/Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Filters
-  const [companyFilter, setCompanyFilter] = useState<string>(selectedCompany?.id || 'all');
-
-  // Dialog form
+  const [editingBranch, setEditingBranch] = useState<BranchWithCounts | null>(null);
   const [formCompanyId, setFormCompanyId] = useState('');
   const [branchName, setBranchName] = useState('');
   const [branchCode, setBranchCode] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Delete dialog
+  const [deleteTarget, setDeleteTarget] = useState<BranchWithCounts | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchBranches = useCallback(async () => {
     setLoading(true);
@@ -58,14 +80,14 @@ export default function BranchListView() {
       const params = new URLSearchParams();
       params.set('pageSize', '200');
       if (companyFilter !== 'all') params.set('companyId', companyFilter);
-      const res = await apiGet<Branch[]>(`/branches?${params.toString()}`);
+      const res = await apiGet<BranchWithCounts[]>(`/branches?${params.toString()}`);
       setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch {
       setBranches([]);
     } finally {
       setLoading(false);
     }
-  }, [companyFilter, selectedCompany]);
+  }, [companyFilter]);
 
   const fetchCompanies = async () => {
     try {
@@ -76,42 +98,78 @@ export default function BranchListView() {
     }
   };
 
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
+  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { fetchBranches(); }, [fetchBranches]);
 
-  useEffect(() => {
-    fetchBranches();
-  }, [fetchBranches]);
+  const openCreate = () => {
+    setEditingBranch(null);
+    setFormCompanyId(companyFilter !== 'all' ? companyFilter : '');
+    setBranchName('');
+    setBranchCode('');
+    setDialogOpen(true);
+  };
 
-  const handleCreate = async () => {
+  const openEdit = (branch: BranchWithCounts) => {
+    setEditingBranch(branch);
+    setFormCompanyId(branch.companyId);
+    setBranchName(branch.name);
+    setBranchCode(branch.code);
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!formCompanyId || !branchName.trim() || !branchCode.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
-    setCreating(true);
+    setSaving(true);
     try {
-      await apiPost('/branches', {
-        companyId: formCompanyId,
-        name: branchName.trim(),
-        code: branchCode.trim().toUpperCase(),
-      });
-      toast.success('Branch created successfully');
+      if (editingBranch) {
+        await apiPut(`/branches/${editingBranch.id}`, {
+          companyId: formCompanyId,
+          name: branchName.trim(),
+          code: branchCode.trim().toUpperCase(),
+        });
+        toast.success('Branch updated successfully');
+      } else {
+        await apiPost('/branches', {
+          companyId: formCompanyId,
+          name: branchName.trim(),
+          code: branchCode.trim().toUpperCase(),
+        });
+        toast.success('Branch created successfully');
+      }
       setDialogOpen(false);
-      setBranchName('');
-      setBranchCode('');
-      setFormCompanyId('');
       fetchBranches();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create branch');
+      toast.error(err.message || 'Failed to save branch');
     } finally {
-      setCreating(false);
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiDelete(`/branches/${deleteTarget.id}`);
+      toast.success('Branch deleted successfully');
+      setDeleteTarget(null);
+      fetchBranches();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete branch');
+    } finally {
+      setDeleting(false);
     }
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const getCompanyName = (companyId: string) => {
+    return companies.find((c) => c.id === companyId)?.name || '—';
   };
 
   return (
@@ -123,66 +181,10 @@ export default function BranchListView() {
           <p className="text-sm text-muted-foreground mt-1">Manage company branches</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Branch
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="rounded-xl sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Branch</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>Company</Label>
-                <Select value={formCompanyId} onValueChange={setFormCompanyId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="branch-name">Branch Name</Label>
-                <Input
-                  id="branch-name"
-                  value={branchName}
-                  onChange={(e) => setBranchName(e.target.value)}
-                  placeholder="Enter branch name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="branch-code">Branch Code</Label>
-                <Input
-                  id="branch-code"
-                  value={branchCode}
-                  onChange={(e) => setBranchCode(e.target.value.toUpperCase())}
-                  placeholder="e.g., HQ"
-                  maxLength={10}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreate} disabled={creating}>
-                {creating ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                ) : (
-                  <Plus className="h-4 w-4 mr-2" />
-                )}
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Branch
+        </Button>
       </div>
 
       {/* Company Filter */}
@@ -215,7 +217,9 @@ export default function BranchListView() {
           ) : branches.length === 0 ? (
             <div className="py-16 text-center">
               <GitBranch className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No branches found.</p>
+              <p className="text-sm text-muted-foreground">
+                {companyFilter !== 'all' ? 'No branches found for this company.' : 'No branches found.'}
+              </p>
             </div>
           ) : (
             <>
@@ -233,16 +237,40 @@ export default function BranchListView() {
                           <p className="text-xs text-muted-foreground font-mono">{branch.code}</p>
                         </div>
                       </div>
-                      <Badge variant={branch.status ? 'default' : 'secondary'}>
-                        {branch.status ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    {branch.company && (
-                      <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
-                        <Building2 className="h-3 w-3" />
-                        <span>{branch.company.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={branch.status ? 'default' : 'secondary'}>
+                          {branch.status ? 'Active' : 'Inactive'}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(branch)}>
+                              <Pencil className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteTarget(branch)}
+                              className="text-red-500 focus:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {branch.company?.name || getCompanyName(branch.companyId)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {(branch as any).employeeCount ?? 0} employees
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -255,23 +283,46 @@ export default function BranchListView() {
                       <TableHead>Company</TableHead>
                       <TableHead>Branch Name</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Employees</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {branches.map((branch) => (
                       <TableRow key={branch.id}>
-                        <TableCell>{branch.company?.name || '—'}</TableCell>
+                        <TableCell>{branch.company?.name || getCompanyName(branch.companyId)}</TableCell>
                         <TableCell className="font-medium">{branch.name}</TableCell>
                         <TableCell className="font-mono text-xs">{branch.code}</TableCell>
+                        <TableCell>{(branch as any).employeeCount ?? 0}</TableCell>
                         <TableCell>
                           <Badge variant={branch.status ? 'default' : 'secondary'}>
                             {branch.status ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground text-sm">
                           {formatDate(branch.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(branch)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(branch)}
+                                className="text-red-500 focus:text-red-500"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -282,6 +333,101 @@ export default function BranchListView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="rounded-xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingBranch ? 'Edit Branch' : 'Add Branch'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Company</Label>
+              <Select value={formCompanyId} onValueChange={setFormCompanyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch-name">Branch Name</Label>
+              <Input
+                id="branch-name"
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                placeholder="Enter branch name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="branch-code">Branch Code</Label>
+              <Input
+                id="branch-code"
+                value={branchCode}
+                onChange={(e) => setBranchCode(e.target.value.toUpperCase())}
+                placeholder="e.g., HQ"
+                maxLength={10}
+              />
+              <p className="text-xs text-muted-foreground">Unique code within the company</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              {editingBranch ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Branch</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>?
+              {((deleteTarget as any)?.employeeCount ?? 0) > 0 && (
+                <span className="block mt-2 text-red-500 font-medium">
+                  This branch has {(deleteTarget as any)?.employeeCount} employee(s). 
+                  You must reassign or delete all employees before deleting this branch.
+                </span>
+              )}
+              {((deleteTarget as any)?.employeeCount ?? 0) === 0 && (
+                <span className="block mt-2">
+                  This action cannot be undone.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting || ((deleteTarget as any)?.employeeCount ?? 0) > 0}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deleting ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

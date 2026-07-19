@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden: not your company' }, { status: 403 });
     }
 
-    // Create salary batch
+    // Create salary batch using the form-level month/year
     const batch = await db.salaryBatch.create({
       data: {
         companyId,
@@ -61,50 +61,64 @@ export async function POST(request: NextRequest) {
 
     // Create salary slips using upsert
     for (const record of records) {
+      // Each record may have its own month (from the Month column override)
+      const recordMonth = record.month ?? month;
+      const recordYear = record.year ?? year;
+
       await db.salarySlip.upsert({
         where: {
           employeeId_month_year: {
             employeeId: record.employeeId,
-            month,
-            year,
+            month: recordMonth,
+            year: recordYear,
           },
         },
         create: {
           batchId: batch.id,
           employeeId: record.employeeId,
-          month,
-          year,
-          grossSalary: record.grossSalary,
-          netSalary: record.netSalary,
-          totalDeduction: record.totalDeduction || 0,
+          month: recordMonth,
+          year: recordYear,
+          salary: record.salary ?? null,
+          workingDays: record.workingDays ?? null,
+          presentDays: record.presentDays ?? null,
+          leave: record.leave ?? null,
           basicSalary: record.basicSalary ?? null,
           hra: record.hra ?? null,
           da: record.da ?? null,
           conveyance: record.conveyance ?? null,
-          medical: record.medical ?? null,
           specialAllow: record.specialAllow ?? null,
+          otherEarning: record.otherEarning ?? null,
+          grossSalary: record.grossSalary ?? 0,
           pf: record.pf ?? null,
           esi: record.esi ?? null,
-          tds: record.tds ?? null,
           professionalTax: record.professionalTax ?? null,
+          tds: record.tds ?? null,
+          advance: record.advance ?? null,
           otherDeduction: record.otherDeduction ?? null,
+          totalDeduction: record.totalDeduction ?? 0,
+          netSalary: record.netSalary,
         },
         update: {
           batchId: batch.id,
-          grossSalary: record.grossSalary,
-          netSalary: record.netSalary,
-          totalDeduction: record.totalDeduction || 0,
+          salary: record.salary ?? null,
+          workingDays: record.workingDays ?? null,
+          presentDays: record.presentDays ?? null,
+          leave: record.leave ?? null,
           basicSalary: record.basicSalary ?? null,
           hra: record.hra ?? null,
           da: record.da ?? null,
           conveyance: record.conveyance ?? null,
-          medical: record.medical ?? null,
           specialAllow: record.specialAllow ?? null,
+          otherEarning: record.otherEarning ?? null,
+          grossSalary: record.grossSalary ?? 0,
           pf: record.pf ?? null,
           esi: record.esi ?? null,
-          tds: record.tds ?? null,
           professionalTax: record.professionalTax ?? null,
+          tds: record.tds ?? null,
+          advance: record.advance ?? null,
           otherDeduction: record.otherDeduction ?? null,
+          totalDeduction: record.totalDeduction ?? 0,
+          netSalary: record.netSalary,
         },
       });
     }

@@ -1,10 +1,18 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import { Upload, ArrowLeft, CheckCircle2, XCircle, Loader2, FileSpreadsheet } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Upload, ArrowLeft, CheckCircle2, Loader2, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -15,9 +23,9 @@ import {
 } from '@/components/ui/table';
 import { useNavStore } from '@/store/nav-store';
 import { useAuthStore } from '@/store/auth-store';
-import { apiUpload, apiPost } from '@/lib/api-client';
+import { apiUpload, apiPost, apiGet } from '@/lib/api-client';
 import { toast } from 'sonner';
-import type { EmployeeImportRow } from '@/types';
+import type { EmployeeImportRow, Branch, Company } from '@/types';
 
 interface ValidRecord extends EmployeeImportRow {
   _isNew?: boolean;
@@ -31,8 +39,14 @@ interface InvalidRecord {
 
 export default function EmployeeImportView() {
   const navigate = useNavStore();
-  const { selectedCompany } = useAuthStore();
+  const { isSuperAdmin, selectedCompany } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  const [companyId, setCompanyId] = useState(selectedCompany?.id || '');
+  const [branchId, setBranchId] = useState('');
 
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload');
   const [uploading, setUploading] = useState(false);
@@ -42,7 +56,41 @@ export default function EmployeeImportView() {
   const [validRecords, setValidRecords] = useState<ValidRecord[]>([]);
   const [invalidRecords, setInvalidRecords] = useState<InvalidRecord[]>([]);
 
-  const companyId = selectedCompany?.id || '';
+  // Fetch companies for super admin
+  useEffect(() => {
+    if (!isSuperAdmin()) return;
+    async function fetchCompanies() {
+      try {
+        const res = await apiGet<{ data: Company[] }>('/companies?pageSize=100');
+        setCompanies(res.data || []);
+      } catch {
+        setCompanies([]);
+      }
+    }
+    fetchCompanies();
+  }, [isSuperAdmin]);
+
+  // Fetch branches
+  useEffect(() => {
+    if (!companyId) {
+      setBranches([]);
+      return;
+    }
+    async function fetchBranches() {
+      try {
+        const res = await apiGet<{ data: Branch[] }>(
+          `/branches?companyId=${companyId}&pageSize=100`
+        );
+        setBranches(res.data || []);
+      } catch {
+        setBranches([]);
+      }
+    }
+    fetchBranches();
+  }, [companyId]);
+
+  // For non-super-admin, use selectedCompany
+  const effectiveCompanyId = isSuperAdmin() ? companyId : (selectedCompany?.id || '');
 
   function handleFileSelect(file: File) {
     if (!file.name.match(/\.xlsx?$/i)) {
@@ -53,11 +101,15 @@ export default function EmployeeImportView() {
   }
 
   async function uploadFile(file: File) {
+    if (!effectiveCompanyId) {
+      toast.error('No company selected');
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('companyId', companyId);
+      formData.append('companyId', effectiveCompanyId);
       const res = await apiUpload<{
         valid: ValidRecord[];
         invalid: InvalidRecord[];
@@ -78,7 +130,7 @@ export default function EmployeeImportView() {
     try {
       await apiPost('/employees/import/confirm', {
         records: validRecords,
-        companyId,
+        companyId: effectiveCompanyId,
       });
       toast.success(
         `${validRecords.length} employee(s) imported successfully`
@@ -191,8 +243,10 @@ export default function EmployeeImportView() {
                       <TableRow>
                         <TableHead>Code</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead className="hidden sm:table-cell">Email</TableHead>
-                        <TableHead className="hidden md:table-cell">Branch</TableHead>
+                        <TableHead className="hidden sm:table-cell">Branch</TableHead>
+                        <TableHead className="hidden md:table-cell">Department</TableHead>
+                        <TableHead className="hidden lg:table-cell">Designation</TableHead>
+                        <TableHead className="hidden sm:table-cell">Mobile</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -202,11 +256,17 @@ export default function EmployeeImportView() {
                           <TableCell className="text-sm">
                             {r.firstName} {r.lastName}
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                            {r.email}
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            {r.branchCode}
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-sm">
-                            {r.branchCode}
+                            {r.department || '-'}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm">
+                            {r.designation || '-'}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            {r.mobile || '-'}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -271,40 +331,79 @@ export default function EmployeeImportView() {
           </div>
         </div>
       ) : (
-        <>
-          {/* Upload area */}
-          <div
-            className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 sm:p-12 transition-colors hover:border-primary/50 cursor-pointer"
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-sm font-medium mb-1">
-              Drag and drop your Excel file here
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">or click to browse</p>
-            <p className="text-xs text-muted-foreground">Supports .xlsx, .xls files</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileSelect(file);
-              }}
-            />
-          </div>
+        <Card className="rounded-xl border shadow-sm">
+          <CardContent className="p-4 sm:p-6 space-y-6">
+            {/* Company & Branch selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isSuperAdmin() && companies.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Company</Label>
+                  <Select value={companyId} onValueChange={(v) => { setCompanyId(v); setBranchId(''); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-          <Card className="rounded-xl border bg-muted/50">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">
-                <strong>Note:</strong> Excel should have columns: Employee Code, First Name, Last Name, Email, Mobile, Joining Date, Branch Code
+              <div className="space-y-2">
+                <Label>Branch</Label>
+                <Select value={branchId} onValueChange={setBranchId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Upload area */}
+            <div
+              className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 sm:p-12 transition-colors hover:border-primary/50 cursor-pointer"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-sm font-medium mb-1">
+                Drag and drop your Excel file here
               </p>
-            </CardContent>
-          </Card>
-        </>
+              <p className="text-sm text-muted-foreground mb-4">or click to browse</p>
+              <p className="text-xs text-muted-foreground">Supports .xlsx, .xls files</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+            </div>
+
+            <Card className="rounded-lg bg-muted/50 border-0">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground">
+                  <strong>Note:</strong> Excel should have columns: Code, Employee Name, Gender, PAN, Address, City, PIN, District, State, Mobile, PF No., ESI No., Bank Name, IFSC, A/c Number, Aadhar Number, Branch, Department, Designation, Date of Joining, DOB, Resignation Date
+                </p>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

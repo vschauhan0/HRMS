@@ -21,12 +21,25 @@ async function getAuthUser(request: Request) {
   });
 }
 
-const REQUIRED_COLUMNS = ['Employee Code', 'Gross Salary', 'Net Salary'];
-const OPTIONAL_COLUMNS = [
-  'Basic Salary', 'HRA', 'DA', 'Conveyance', 'Medical',
-  'Special Allowance', 'PF', 'ESI', 'TDS', 'Professional Tax',
-  'Other Deduction', 'Total Deduction',
-];
+const MONTH_NAMES: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4,
+  may: 5, june: 6, july: 7, august: 8,
+  september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4,
+  jun: 6, jul: 7, aug: 8, sep: 9,
+  oct: 10, nov: 11, dec: 12,
+};
+
+function parseMonthValue(val: unknown): number | null {
+  if (val === '' || val === null || val === undefined) return null;
+  const str = String(val).trim().toLowerCase();
+  // Try numeric
+  const num = parseInt(str, 10);
+  if (!isNaN(num) && num >= 1 && num <= 12) return num;
+  // Try month name
+  if (MONTH_NAMES[str] !== undefined) return MONTH_NAMES[str];
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const month = parseInt(monthStr, 10);
+    let month = parseInt(monthStr, 10);
     const year = parseInt(yearStr, 10);
 
     if (isNaN(month) || month < 1 || month > 12) {
@@ -80,22 +93,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Excel file is empty' }, { status: 400 });
     }
 
-    // Validate columns
-    const firstRow = rows[0] as Record<string, unknown>;
-    const missingCols = REQUIRED_COLUMNS.filter((col) => !(col in firstRow));
-    if (missingCols.length > 0) {
-      return NextResponse.json(
-        { success: false, message: `Missing required columns: ${missingCols.join(', ')}` },
-        { status: 400 }
-      );
-    }
-
     // Fetch all employees for the company to validate employee codes
     const employees = await db.employee.findMany({
       where: { companyId },
-      select: { id: true, employeeCode: true },
+      select: { id: true, employeeCode: true, resignationDate: true, status: true },
     });
-    const employeeMap = new Map(employees.map((e) => [e.employeeCode.trim(), e.id]));
+    const employeeMap = new Map(employees.map((e) => [e.employeeCode.trim(), e]));
 
     // Fetch existing slips for duplicate check
     const existingSlips = await db.salarySlip.findMany({
@@ -117,19 +120,46 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const employeeId = employeeMap.get(employeeCode);
-      if (!employeeId) {
+      const emp = employeeMap.get(employeeCode);
+      if (!emp) {
         invalid.push({ row: rowNum, message: `Employee code "${employeeCode}" not found in company`, data: row });
         continue;
       }
 
-      if (existingSet.has(employeeId)) {
-        invalid.push({
-          row: rowNum,
-          message: `Duplicate: salary already exists for ${month}/${year}`,
-          data: row,
-        });
+      // Skip if employee has resigned (has a resignation date)
+      const resignationDate = row['Resignation Date'];
+      if (resignationDate && resignationDate !== '' && resignationDate !== null && resignationDate !== undefined) {
+        invalid.push({ row: rowNum, message: `Employee "${employeeCode}" has resigned`, data: row });
         continue;
+      }
+
+      // Allow Month column in the row to override the form month
+      const rowMonth = parseMonthValue(row['Month']);
+      const effectiveMonth = rowMonth ?? month;
+
+      // Re-check duplicates with effective month
+      if (effectiveMonth !== month) {
+        const existingForMonth = await db.salarySlip.findFirst({
+          where: { employeeId: emp.id, month: effectiveMonth, year },
+          select: { id: true },
+        });
+        if (existingForMonth) {
+          invalid.push({
+            row: rowNum,
+            message: `Duplicate: salary already exists for ${effectiveMonth}/${year}`,
+            data: row,
+          });
+          continue;
+        }
+      } else {
+        if (existingSet.has(emp.id)) {
+          invalid.push({
+            row: rowNum,
+            message: `Duplicate: salary already exists for ${effectiveMonth}/${year}`,
+            data: row,
+          });
+          continue;
+        }
       }
 
       const parseNum = (val: unknown, name: string): { ok: true; value: number } | { ok: false; message: string } => {
@@ -139,54 +169,49 @@ export async function POST(request: NextRequest) {
         return { ok: true, value: num };
       };
 
-      const grossResult = parseNum(row['Gross Salary'], 'Gross Salary');
-      if (!grossResult.ok) {
-        invalid.push({ row: rowNum, message: grossResult.message, data: row });
-        continue;
-      }
-      if (grossResult.value < 0) {
-        invalid.push({ row: rowNum, message: 'Gross Salary cannot be negative', data: row });
-        continue;
-      }
+      const parseOptionalNum = (val: unknown): number | null => {
+        if (val === '' || val === null || val === undefined) return null;
+        const num = Number(val);
+        if (isNaN(num)) return null;
+        return num;
+      };
 
+      // Only Employee Code and Net Salary are truly required
       const netResult = parseNum(row['Net Salary'], 'Net Salary');
       if (!netResult.ok) {
         invalid.push({ row: rowNum, message: netResult.message, data: row });
         continue;
       }
 
+      const salaryResult = parseNum(row['Salary'], 'Salary');
+      const grossResult = parseNum(row['Gross Salary'], 'Gross Salary');
       const totalDeductionResult = parseNum(row['Total Deduction'], 'Total Deduction');
-
-      const basicResult = parseNum(row['Basic Salary'], 'Basic Salary');
-      const hraResult = parseNum(row['HRA'], 'HRA');
-      const daResult = parseNum(row['DA'], 'DA');
-      const conveyanceResult = parseNum(row['Conveyance'], 'Conveyance');
-      const medicalResult = parseNum(row['Medical'], 'Medical');
-      const specialAllowResult = parseNum(row['Special Allowance'], 'Special Allowance');
-      const pfResult = parseNum(row['PF'], 'PF');
-      const esiResult = parseNum(row['ESI'], 'ESI');
-      const tdsResult = parseNum(row['TDS'], 'TDS');
-      const ptResult = parseNum(row['Professional Tax'], 'Professional Tax');
-      const otherDedResult = parseNum(row['Other Deduction'], 'Other Deduction');
 
       valid.push({
         row: rowNum,
         employeeCode,
-        employeeId,
-        grossSalary: grossResult.value,
+        employeeId: emp.id,
+        month: effectiveMonth,
+        year,
+        employeeName: String(row['Employee Name'] || '').trim(),
+        workingDays: parseOptionalNum(row['Working Days']),
+        presentDays: parseOptionalNum(row['Present Days']),
+        leave: parseOptionalNum(row['Leave']),
+        salary: salaryResult.ok ? salaryResult.value || null : null,
+        basicSalary: parseOptionalNum(row['Basic Salary']),
+        hra: parseOptionalNum(row['HRA']),
+        da: parseOptionalNum(row['DA']),
+        conveyance: parseOptionalNum(row['CON.AL']),
+        specialAllow: parseOptionalNum(row['COMM']),
+        otherEarning: parseOptionalNum(row['OTHER']),
+        grossSalary: grossResult.ok ? grossResult.value || null : null,
+        pf: parseOptionalNum(row['PF']),
+        esi: parseOptionalNum(row['ESI']),
+        professionalTax: parseOptionalNum(row['PT']),
+        tds: parseOptionalNum(row['TDS']),
+        advance: parseOptionalNum(row['Advance']),
+        totalDeduction: totalDeductionResult.ok ? totalDeductionResult.value || 0 : 0,
         netSalary: netResult.value,
-        totalDeduction: totalDeductionResult.ok ? totalDeductionResult.value : 0,
-        basicSalary: basicResult.ok ? basicResult.value || null : null,
-        hra: hraResult.ok ? hraResult.value || null : null,
-        da: daResult.ok ? daResult.value || null : null,
-        conveyance: conveyanceResult.ok ? conveyanceResult.value || null : null,
-        medical: medicalResult.ok ? medicalResult.value || null : null,
-        specialAllow: specialAllowResult.ok ? specialAllowResult.value || null : null,
-        pf: pfResult.ok ? pfResult.value || null : null,
-        esi: esiResult.ok ? esiResult.value || null : null,
-        tds: tdsResult.ok ? tdsResult.value || null : null,
-        professionalTax: ptResult.ok ? ptResult.value || null : null,
-        otherDeduction: otherDedResult.ok ? otherDedResult.value || null : null,
       });
     }
 

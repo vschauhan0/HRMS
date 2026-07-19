@@ -13,6 +13,9 @@ export interface Company {
   name: string;
   code: string;
   themeColor: string;
+  address: string | null;
+  pan: string | null;
+  tan: string | null;
   status: boolean;
   createdAt: string;
   updatedAt: string;
@@ -53,7 +56,18 @@ export interface Employee {
   email: string;
   mobile: string;
   pan: string | null;
+  gender: string | null;
+  city: string | null;
+  pin: string | null;
+  district: string | null;
+  state: string | null;
+  pfNo: string | null;
+  esiNo: string | null;
+  aadharNumber: string | null;
+  uan: string | null;
+  dob: string | null;
   joiningDate: string;
+  resignationDate: string | null;
   department: string | null;
   designation: string | null;
   status: EmployeeStatus;
@@ -125,17 +139,25 @@ export interface SalarySlip {
   grossSalary: number;
   totalDeduction: number;
   netSalary: number;
+  salary: number | null;
   basicSalary: number | null;
   hra: number | null;
   da: number | null;
   conveyance: number | null;
   medical: number | null;
   specialAllow: number | null;
+  otherEarning: number | null;
   pf: number | null;
   esi: number | null;
   tds: number | null;
   professionalTax: number | null;
+  lwf: number | null;
+  advance: number | null;
   otherDeduction: number | null;
+  workingDays: number | null;
+  presentDays: number | null;
+  leave: number | null;
+  lwp: number | null;
   pdfPath: string | null;
   createdAt: string;
   updatedAt: string;
@@ -254,20 +276,28 @@ export interface DashboardStats {
 // Salary Import Row (from Excel)
 export interface SalaryImportRow {
   employeeCode: string;
+  employeeName?: string;
   grossSalary: number;
   totalDeduction: number;
   netSalary: number;
+  salary?: number;
   basicSalary?: number;
   hra?: number;
   da?: number;
   conveyance?: number;
   medical?: number;
   specialAllow?: number;
+  otherEarning?: number;
   pf?: number;
   esi?: number;
   tds?: number;
   professionalTax?: number;
+  lwf?: number;
+  advance?: number;
   otherDeduction?: number;
+  workingDays?: number;
+  presentDays?: number;
+  leave?: number;
 }
 
 // Employee Import Row
@@ -278,8 +308,21 @@ export interface EmployeeImportRow {
   email: string;
   mobile: string;
   pan?: string;
+  gender?: string;
+  city?: string;
+  pin?: string;
+  district?: string;
+  state?: string;
+  pfNo?: string;
+  esiNo?: string;
+  aadharNumber?: string;
+  dob?: string;
   joiningDate: string;
+  resignationDate?: string;
   department?: string;
   designation?: string;
   branchCode: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifsc?: string;
 }

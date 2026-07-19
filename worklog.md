@@ -1,78 +1,26 @@
 ---
 Task ID: 1
-Agent: main
-Task: Revert improper changes (company switcher, theming, custom cursor)
+Agent: Main Agent
+Task: Implement Form 16, Bulk Employee Upload, Salary Upload, and Payslip Generation features
 
 Work Log:
-- Deleted company-switcher.tsx, company-theme-provider.tsx, custom-cursor.tsx
-- Cleaned page.tsx: removed CompanyThemeProvider wrapper, company accent bar
-- Cleaned app-topbar.tsx: removed CompanySwitcher import/usage, company accent bar, company-themed mobile sheet
-- Cleaned app-sidebar.tsx: removed company-themed colors (themeColor, company-brand-dot), reverted to standard shadcn primary/foreground
-- Cleaned layout.tsx: removed CustomCursor import and usage
-- Cleaned globals.css: removed company-accent-bar, company-brand, company-brand-dot, company-pill, company-sidebar-active CSS rules, and custom-cursor CSS
+- Analyzed uploaded files: Form16-2511-2024-25.pdf, account_master_template.xlsx, nidhi_impex_salary_template.xlsx, payslip-2511-January-2026.pdf
+- Used VLM to analyze payslip image format (image-based PDF)
+- Updated Prisma schema: added gender, city, pin, district, state, pfNo, esiNo, aadharNumber, uan, dob, resignationDate to Employee; added salary, otherEarning, lwf, advance, workingDays, presentDays, leave, lwp to SalarySlip; added address, pan, tan to Company
+- Rewrote employee import API to match account_master_template.xlsx (22 columns including bank details, auto-generates email from firstName + employeeCode)
+- Rewrote salary import API to match nidhi_impex_salary_template.xlsx (20 columns with working days, CON.AL, COMM, OTHER, PT, Advance)
+- Created payslip PDF generation using pdfkit matching the Nidhi Impex payslip format (company header, employee info box, attendance box, earnings/deductions table, net pay section, footer)
+- Created single payslip generation API and batch generation API
+- Updated types/index.ts with all new fields
+- Updated all UI views: EmployeeImportView, SalaryUploadView, SalarySlipsView, SalaryBatchDetailView, MySalaryView
+- Updated seed data with company address, PAN, TAN
+- Verified build (lint clean, production build successful)
+- Verified via agent-browser: login, dashboard, salary page, form16 page, employees page all render correctly
 
 Stage Summary:
-- All company theming and premium cursor effects reverted cleanly
-- UI restored to clean shadcn/ui defaults
-
----
-Task ID: 2
-Agent: main
-Task: Build Company CRUD API routes (PUT/DELETE)
-
-Work Log:
-- Created /src/app/api/v1/companies/[id]/route.ts
-- PUT: Super admin update company (name, code, status) with uniqueness check on code
-- DELETE: Super admin delete company with employee existence guard
-- Fixed Prisma relation name: adminProfiles → admins
-
-Stage Summary:
-- Company full CRUD: GET/POST at /companies, PUT/DELETE at /companies/[id]
-- Delete blocked if company has employees
-
----
-Task ID: 3
-Agent: general-purpose (subagent)
-Task: Build Branch CRUD API routes (PUT/DELETE)
-
-Work Log:
-- Created /src/app/api/v1/branches/[id]/route.ts
-- PUT: Super admin update branch (name, code, status, companyId) with P2002 unique constraint handling
-- DELETE: Super admin delete branch with employee existence guard
-
-Stage Summary:
-- Branch full CRUD: GET/POST at /branches, PUT/DELETE at /branches/[id]
-- Delete blocked if branch has employees
-
----
-Task ID: 4
-Agent: main
-Task: Rebuild CompanyListView with full CRUD UI
-
-Work Log:
-- Rewrote CompanyListView with Create, Read, Update, Delete
-- Edit dialog for updating company name and code
-- Delete confirmation dialog (AlertDialog) with employee count warning
-- Delete button disabled when company has employees
-- Shows branch count and employee count per company
-- Responsive: card list on mobile, table on desktop
-
-Stage Summary:
-- CompanyListView has full CRUD with proper UX
-
----
-Task ID: 5
-Agent: main
-Task: Rebuild BranchListView with full CRUD UI
-
-Work Log:
-- Rewrote BranchListView with Create, Read, Update, Delete
-- Branch is nested under company (select company when creating/editing)
-- Company filter dropdown to filter branches
-- Edit dialog for updating branch name, code, and company
-- Delete confirmation dialog with employee count warning
-- Delete button disabled when branch has employees
-- Responsive: card list on mobile, table on desktop
-
-Stage Summary:
-- BranchListView has full CRUD with proper company nesting
+- Full CRUD for employee bulk import matching account_master_template.xlsx format
+- Full CRUD for salary import matching nidhi_impex_salary_template.xlsx format
+- Form 16 upload/view/download already existed, confirmed working
+- Payslip PDF generation matching the uploaded payslip format (Nidhi Impex style)
+- Employee payslip download enabled for both admin and employee views
+- "Generate All Payslips" button added to batch detail view

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken, generateEmployeeCode } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
 
 function getToken(request: Request): string | null {
   const auth = request.headers.get('authorization');
@@ -68,73 +68,109 @@ export async function POST(request: NextRequest) {
 
     const existingCodeMap = new Map(existingEmployees.map((e) => [e.employeeCode, e.id]));
 
-    // Get all branches for the company
-    const branches = await db.branch.findMany({
-      where: { companyId },
+    // Get existing bank details for employees that will be updated
+    const existingBankDetails = await db.employeeBankDetail.findMany({
+      where: {
+        employeeId: { in: existingEmployees.map((e) => e.id) },
+      },
+      select: { employeeId: true, id: true },
     });
-    const branchMap = new Map(branches.map((b) => [b.id, b]));
+    const bankDetailMap = new Map(existingBankDetails.map((b) => [b.employeeId, b.id]));
 
     let created = 0;
     let updated = 0;
 
-    // Process in batches using Promise.all
-    const promises = records.map(async (record: Record<string, unknown>) => {
+    // Process records sequentially to avoid race conditions
+    for (const record of records as Record<string, unknown>[]) {
       const employeeCode = record.employeeCode as string;
       const existingId = existingCodeMap.get(employeeCode);
 
+      // Build common employee data
+      const employeeData = {
+        firstName: (record.firstName as string).trim(),
+        lastName: ((record.lastName as string) || '').trim(),
+        email: (record.email as string).toLowerCase().trim(),
+        gender: ((record.gender as string) || '').trim() || null,
+        pan: ((record.pan as string) || '').trim() || null,
+        address: ((record.address as string) || '').trim() || null,
+        city: ((record.city as string) || '').trim() || null,
+        pin: ((record.pin as string) || '').trim() || null,
+        district: ((record.district as string) || '').trim() || null,
+        state: ((record.state as string) || '').trim() || null,
+        mobile: ((record.mobile as string) || '').trim() || null,
+        pfNo: ((record.pfNo as string) || '').trim() || null,
+        esiNo: ((record.esiNo as string) || '').trim() || null,
+        aadharNumber: ((record.aadharNumber as string) || '').trim() || null,
+        department: ((record.department as string) || '').trim() || null,
+        designation: ((record.designation as string) || '').trim() || null,
+        joiningDate: new Date(record.joiningDate as string),
+        dob: record.dob ? new Date(record.dob as string) : null,
+        resignationDate: record.resignationDate ? new Date(record.resignationDate as string) : null,
+        branchId: record.branchId as string,
+      };
+
+      // Extract bank detail from record
+      const bankDetail = record.bankDetail as Record<string, unknown> | null;
+      const hasBankDetails = bankDetail && (bankDetail.bankName || bankDetail.accountNumber);
+
       if (existingId) {
-        // Update existing employee
+        // ── Update existing employee ──
         await db.employee.update({
           where: { id: existingId },
-          data: {
-            firstName: (record.firstName as string).trim(),
-            lastName: (record.lastName as string).trim(),
-            email: (record.email as string).toLowerCase().trim(),
-            mobile: (record.mobile as string).trim(),
-            pan: (record.pan as string)?.trim() || null,
-            joiningDate: new Date(record.joiningDate as string),
-            branchId: record.branchId as string,
-            department: (record.department as string)?.trim() || null,
-            designation: (record.designation as string)?.trim() || null,
-            address: (record.address as string)?.trim() || null,
-          },
+          data: employeeData,
         });
-        updated++;
-      } else {
-        // Create new employee
-        const branchId = record.branchId as string;
-        const branch = branchMap.get(branchId);
-        const companyCode = branch?.company?.code || '';
 
-        // Use provided employee code or generate one
-        let code = employeeCode;
-        if (!code) {
-          const branchCode = branch?.code || 'XXX';
-          code = generateEmployeeCode(companyCode, branchCode);
+        // Handle bank details
+        const existingBankId = bankDetailMap.get(existingId);
+        if (hasBankDetails) {
+          const bankData = {
+            bankName: (bankDetail.bankName as string).trim(),
+            accountNumber: (bankDetail.accountNumber as string).trim(),
+            ifsc: (bankDetail.ifsc as string).trim(),
+            accountHolder: ((bankDetail.accountHolder as string) || `${(record.firstName as string)} ${(record.lastName as string) || ''}`.trim()).trim(),
+          };
+
+          if (existingBankId) {
+            // Update existing bank detail
+            await db.employeeBankDetail.update({
+              where: { id: existingBankId },
+              data: bankData,
+            });
+          } else {
+            // Create new bank detail
+            await db.employeeBankDetail.create({
+              data: {
+                employeeId: existingId,
+                ...bankData,
+              },
+            });
+          }
         }
 
+        updated++;
+      } else {
+        // ── Create new employee ──
         await db.employee.create({
           data: {
             companyId,
-            branchId,
-            employeeCode: code,
-            firstName: (record.firstName as string).trim(),
-            lastName: (record.lastName as string).trim(),
-            email: (record.email as string).toLowerCase().trim(),
-            mobile: (record.mobile as string).trim(),
-            pan: (record.pan as string)?.trim() || null,
-            joiningDate: new Date(record.joiningDate as string),
-            department: (record.department as string)?.trim() || null,
-            designation: (record.designation as string)?.trim() || null,
-            address: (record.address as string)?.trim() || null,
+            ...employeeData,
             status: 'PENDING',
+            bankDetail: hasBankDetails
+              ? {
+                  create: {
+                    bankName: (bankDetail.bankName as string).trim(),
+                    accountNumber: (bankDetail.accountNumber as string).trim(),
+                    ifsc: (bankDetail.ifsc as string).trim(),
+                    accountHolder: ((bankDetail.accountHolder as string) || `${(record.firstName as string)} ${(record.lastName as string) || ''}`.trim()).trim(),
+                  },
+                }
+              : undefined,
           },
         });
+
         created++;
       }
-    });
-
-    await Promise.all(promises);
+    }
 
     return NextResponse.json({
       success: true,

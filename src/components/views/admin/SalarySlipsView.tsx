@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, FileDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +23,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { apiGet } from '@/lib/api-client';
 import { MONTHS, MONTHS_SHORT, PAGE_SIZE } from '@/lib/constants';
+import { toast } from 'sonner';
 import type { SalarySlip, PaginatedResponse } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -39,6 +40,7 @@ export default function SalarySlipsView() {
   const [yearFilter, setYearFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
@@ -79,6 +81,32 @@ export default function SalarySlipsView() {
   useEffect(() => {
     fetchSlips();
   }, [fetchSlips]);
+
+  async function handleDownloadSlip(slip: SalarySlip) {
+    if (downloadingId) return;
+    setDownloadingId(slip.id);
+    try {
+      const { token } = useAuthStore.getState();
+      const code = slip.employee?.employeeCode || 'unknown';
+      const monthYear = `${MONTHS_SHORT[(slip.month || 1) - 1]}_${slip.year}`;
+      const res = await fetch(`/api/v1/salary/slips/${slip.id}/generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to generate payslip');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `payslip_${code}_${monthYear}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download payslip');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -158,6 +186,7 @@ export default function SalarySlipsView() {
                   <TableHead>Year</TableHead>
                   <TableHead className="text-right">Gross</TableHead>
                   <TableHead className="text-right">Net Salary</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -194,10 +223,28 @@ export default function SalarySlipsView() {
                       <TableCell className="text-right text-sm font-medium">
                         {slip.netSalary?.toLocaleString()}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={downloadingId === slip.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadSlip(slip);
+                          }}
+                        >
+                          {downloadingId === slip.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                     {expandedId === slip.id && (
                       <TableRow key={`${slip.id}-detail`}>
-                        <TableCell colSpan={7} className="bg-muted/30 px-6 py-4">
+                        <TableCell colSpan={8} className="bg-muted/30 px-6 py-4">
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div>
                               <p className="text-xs text-muted-foreground">Basic Salary</p>
@@ -250,6 +297,21 @@ export default function SalarySlipsView() {
                               </p>
                             </div>
                           </div>
+                          <div className="mt-4 flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={downloadingId === slip.id}
+                              onClick={() => handleDownloadSlip(slip)}
+                            >
+                              {downloadingId === slip.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <FileDown className="h-4 w-4 mr-2" />
+                              )}
+                              Download Payslip
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
@@ -278,6 +340,22 @@ export default function SalarySlipsView() {
                           : '-'}
                       </p>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={downloadingId === slip.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadSlip(slip);
+                          }}
+                        >
+                          {downloadingId === slip.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <FileDown className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
                         <span className="text-xs text-muted-foreground">
                           {MONTHS_SHORT[(slip.month || 1) - 1]} {slip.year}
                         </span>
@@ -297,32 +375,52 @@ export default function SalarySlipsView() {
                       </span>
                     </div>
                     {isExpanded && (
-                      <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Gross</p>
-                          <p className="text-sm">{slip.grossSalary?.toLocaleString()}</p>
+                      <div className="mt-3 pt-3 border-t space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Gross</p>
+                            <p className="text-sm">{slip.grossSalary?.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Deductions</p>
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                              {slip.totalDeduction?.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Basic</p>
+                            <p className="text-sm">{slip.basicSalary?.toLocaleString() || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">HRA</p>
+                            <p className="text-sm">{slip.hra?.toLocaleString() || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">PF</p>
+                            <p className="text-sm">{slip.pf?.toLocaleString() || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">TDS</p>
+                            <p className="text-sm">{slip.tds?.toLocaleString() || '-'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Deductions</p>
-                          <p className="text-sm text-red-600 dark:text-red-400">
-                            {slip.totalDeduction?.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Basic</p>
-                          <p className="text-sm">{slip.basicSalary?.toLocaleString() || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">HRA</p>
-                          <p className="text-sm">{slip.hra?.toLocaleString() || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">PF</p>
-                          <p className="text-sm">{slip.pf?.toLocaleString() || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">TDS</p>
-                          <p className="text-sm">{slip.tds?.toLocaleString() || '-'}</p>
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={downloadingId === slip.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadSlip(slip);
+                            }}
+                          >
+                            {downloadingId === slip.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <FileDown className="h-4 w-4 mr-2" />
+                            )}
+                            Download Payslip
+                          </Button>
                         </div>
                       </div>
                     )}

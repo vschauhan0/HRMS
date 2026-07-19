@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   Loader2,
   CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -239,6 +238,10 @@ export default function SalaryUploadView() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Emp Code</TableHead>
+                        <TableHead>Employee Name</TableHead>
+                        <TableHead className="hidden sm:table-cell">Working Days</TableHead>
+                        <TableHead className="hidden sm:table-cell">Present Days</TableHead>
+                        <TableHead className="hidden md:table-cell">Basic Salary</TableHead>
                         <TableHead>Gross</TableHead>
                         <TableHead>Deductions</TableHead>
                         <TableHead>Net</TableHead>
@@ -249,6 +252,18 @@ export default function SalaryUploadView() {
                         <TableRow key={i} className="bg-emerald-50/50 dark:bg-emerald-950/10">
                           <TableCell className="font-mono text-sm">
                             {r.employeeCode}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {r.employeeName || r.employeeCode}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            {r.workingDays ?? '-'}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            {r.presentDays ?? '-'}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">
+                            {r.basicSalary?.toLocaleString() ?? '-'}
                           </TableCell>
                           <TableCell className="text-sm">
                             {r.grossSalary?.toLocaleString()}
@@ -435,7 +450,7 @@ export default function SalaryUploadView() {
             <Card className="rounded-lg bg-muted/50 border-0">
               <CardContent className="p-3">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Note:</strong> Excel should have columns: Employee Code, Gross Salary, Net Salary
+                  <strong>Note:</strong> Excel should have columns: Employee Code, Employee Name, Working Days, Present Days, Leave, Salary, Basic Salary, HRA, DA, CON.AL, COMM, OTHER, Gross Salary, PF, ESI, PT, TDS, Advance, Total Deduction, Net Salary
                 </p>
               </CardContent>
             </Card>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowLeft, Trash2, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Trash2, Loader2, FileDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +24,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useNavStore } from '@/store/nav-store';
-import { apiGet, apiDelete } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth-store';
+import { apiGet, apiPost, apiDelete } from '@/lib/api-client';
 import { MONTHS_SHORT } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { SalaryBatch, SalarySlip } from '@/types';
@@ -37,25 +38,28 @@ export default function SalaryBatchDetailView() {
   const [slips, setSlips] = useState<SalarySlip[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!batchId) return;
-      try {
-        const res = await apiGet<SalaryBatch & { slips: SalarySlip[] }>(
-          `/salary/batches/${batchId}`
-        );
-        setBatch(res);
-        setSlips(res.slips || []);
-      } catch {
-        toast.error('Failed to load batch details');
-      } finally {
-        setLoading(false);
-      }
+  const fetchData = useCallback(async () => {
+    if (!batchId) return;
+    try {
+      const res = await apiGet<SalaryBatch & { slips: SalarySlip[] }>(
+        `/salary/batches/${batchId}`
+      );
+      setBatch(res);
+      setSlips(res.slips || []);
+    } catch {
+      toast.error('Failed to load batch details');
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [batchId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   async function handleDelete() {
     setDeleting(true);
@@ -68,6 +72,45 @@ export default function SalaryBatchDetailView() {
     } finally {
       setDeleting(false);
       setShowDeleteDialog(false);
+    }
+  }
+
+  async function handleGenerateAll() {
+    setGenerating(true);
+    try {
+      await apiPost(`/salary/batches/${batchId}/generate-all`, {});
+      toast.success('Payslips generated successfully');
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate payslips');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleDownloadSlip(slip: SalarySlip) {
+    if (downloadingId) return;
+    setDownloadingId(slip.id);
+    try {
+      const { token } = useAuthStore.getState();
+      const code = slip.employee?.employeeCode || 'unknown';
+      const monthYear = `${MONTHS_SHORT[(slip.month || 1) - 1]}_${slip.year}`;
+      const res = await fetch(`/api/v1/salary/slips/${slip.id}/generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to generate payslip');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `payslip_${code}_${monthYear}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download payslip');
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -158,6 +201,7 @@ export default function SalaryBatchDetailView() {
                   <TableHead className="text-right">Gross Salary</TableHead>
                   <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Net Salary</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -180,6 +224,21 @@ export default function SalaryBatchDetailView() {
                     <TableCell className="text-right text-sm font-medium">
                       {slip.netSalary?.toLocaleString()}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={downloadingId === slip.id}
+                        onClick={() => handleDownloadSlip(slip)}
+                      >
+                        {downloadingId === slip.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -197,9 +256,24 @@ export default function SalaryBatchDetailView() {
                         ? `${slip.employee.firstName} ${slip.employee.lastName}`
                         : '-'}
                     </p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {slip.employee?.employeeCode}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground font-mono mr-2">
+                        {slip.employee?.employeeCode}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={downloadingId === slip.id}
+                        onClick={() => handleDownloadSlip(slip)}
+                      >
+                        {downloadingId === slip.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
@@ -224,8 +298,20 @@ export default function SalaryBatchDetailView() {
         </>
       )}
 
-      {/* Delete button */}
-      <div className="flex justify-end">
+      {/* Action buttons */}
+      <div className="flex justify-end gap-3">
+        <Button
+          size="sm"
+          onClick={handleGenerateAll}
+          disabled={generating || slips.length === 0}
+        >
+          {generating ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 mr-1.5" />
+          )}
+          Generate Payslips
+        </Button>
         <Button
           variant="destructive"
           size="sm"

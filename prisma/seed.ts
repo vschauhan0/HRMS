@@ -9,14 +9,14 @@ async function seed() {
   // Create Companies
   const nidhiImpex = await prisma.company.upsert({
     where: { code: 'NI' },
-    update: { themeColor: '#0d9488' },
-    create: { name: 'Nidhi Impex', code: 'NI', themeColor: '#0d9488', status: true },
+    update: { address: '2ND TO 7TH FLOOR, SY NO. 376 PLOT NO 7 TPS NO. 4, SHREEJI BUILDING, PURSHOTTAM FARM COMPOUND, OPP. PODDAR ARCADE, VARACHHA ROAD, SURAT-395006 GUJARAT', pan: 'AAIFN3857A', tan: 'SRTN03025B' },
+    create: { name: 'Nidhi Impex', code: 'NI', themeColor: '#0d9488', status: true, address: '2ND TO 7TH FLOOR, SY NO. 376 PLOT NO 7 TPS NO. 4, SHREEJI BUILDING, PURSHOTTAM FARM COMPOUND, OPP. PODDAR ARCADE, VARACHHA ROAD, SURAT-395006 GUJARAT', pan: 'AAIFN3857A', tan: 'SRTN03025B' },
   });
 
   const silverStar = await prisma.company.upsert({
     where: { code: 'SS' },
     update: { themeColor: '#d97706' },
-    create: { name: 'Silver Star', code: 'SS', themeColor: '#d97706', status: true },
+    create: { name: 'Silver Star', code: 'SS', themeColor: '#d97706', status: true, address: 'SURAT, GUJARAT' },
   });
 
   console.log('✅ Companies created');

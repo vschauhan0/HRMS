@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { apiGet } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth-store';
+import { toast } from 'sonner';
 import type { SalarySlip, PaginatedResponse } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,6 +84,31 @@ export default function MySalaryView() {
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownloadPayslip(slip: SalarySlip) {
+    setDownloadingId(slip.id);
+    try {
+      const { token } = useAuthStore.getState();
+      const res = await fetch(`/api/v1/salary/slips/${slip.id}/generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to generate payslip');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `payslip_${slip.employee?.employeeCode || 'slip'}_${MONTHS[slip.month]}_${slip.year}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download payslip');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   const getEarnings = (slip: SalarySlip): EarningsRow[] => [
     { label: 'Basic Salary', value: slip.basicSalary },
@@ -167,8 +194,8 @@ export default function MySalaryView() {
                         </p>
                       )}
                     </div>
-                    <Button variant="outline" size="sm" disabled>
-                      <Download className="h-3.5 w-3.5 mr-1" />
+                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleDownloadPayslip(slip); }} disabled={downloadingId === slip.id}>
+                      <Download className={`h-3.5 w-3.5 mr-1 ${downloadingId === slip.id ? 'animate-pulse' : ''}`} />
                       PDF
                     </Button>
                   </div>
@@ -273,8 +300,8 @@ export default function MySalaryView() {
                           <TableCell>{slip.employee?.company?.name || '—'}</TableCell>
                           <TableCell>{slip.employee?.branch?.name || '—'}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" disabled>
-                              <Download className="h-3.5 w-3.5 mr-1" />
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDownloadPayslip(slip); }} disabled={downloadingId === slip.id}>
+                              <Download className={`h-3.5 w-3.5 mr-1 ${downloadingId === slip.id ? 'animate-pulse' : ''}`} />
                               PDF
                             </Button>
                           </TableCell>

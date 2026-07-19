@@ -14,6 +14,9 @@ model Company {
   name       String
   code       String   @unique
   themeColor String   @default("#0f172a")
+  address    String?
+  pan        String?
+  tan        String?
   status     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -89,7 +92,18 @@ model Employee {
   email           String
   mobile          String
   pan             String?
+  gender          String?
+  city            String?
+  pin             String?
+  district        String?
+  state           String?
+  pfNo            String?
+  esiNo           String?
+  aadharNumber    String?
+  uan             String?
+  dob             DateTime?
   joiningDate     DateTime
+  resignationDate DateTime?
   department      String?
   designation     String?
   status          String   @default("PENDING") // PENDING, ACTIVE, INACTIVE, RESIGNED
@@ -185,17 +199,25 @@ model SalarySlip {
   grossSalary     Float
   totalDeduction  Float    @default(0)
   netSalary       Float
+  salary          Float?
   basicSalary     Float?
   hra             Float?
   da              Float?
   conveyance      Float?
   medical         Float?
   specialAllow    Float?
+  otherEarning    Float?
   pf              Float?
   esi             Float?
   tds             Float?
   professionalTax Float?
+  lwf             Float?
+  advance         Float?
   otherDeduction  Float?
+  workingDays     Float?
+  presentDays     Float?
+  leave           Float?
+  lwp             Float?
   pdfPath         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

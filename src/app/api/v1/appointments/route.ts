@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         companyId: formData.get('companyId') as string,
         branchId: formData.get('branchId') as string,
       };
-      file = formData.get('file') as File | null;
+      file = formData.get('document') as File | null;
     } else {
       body = await request.json();
     }

@@ -3,13 +3,17 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import {
+  Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, Sparkles,
+  ClipboardList, FileText, ChevronRight,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
 
 import { loginSchema, type LoginInput } from '@/lib/validators';
 import { apiPost } from '@/lib/api-client';
@@ -34,6 +38,7 @@ export default function LoginView() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showQuickLinks, setShowQuickLinks] = useState(false);
 
   const {
     register,
@@ -94,9 +99,9 @@ export default function LoginView() {
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20, duration: 0.6 }}
-          className="w-full max-w-[420px]"
+          className="w-full max-w-[420px] space-y-4"
         >
-          {/* Card */}
+          {/* Login Card */}
           <div className="glass-strong rounded-2xl p-8 sm:p-10">
             <motion.form
               variants={container}
@@ -213,30 +218,71 @@ export default function LoginView() {
 
               <div className="h-px w-full max-w-[200px] bg-gradient-to-r from-transparent via-border to-transparent" />
 
-              <div className="flex items-center gap-4 text-sm">
-                <button
-                  onClick={() => navigate('register-step-1')}
-                  className="hover-scale text-muted-foreground hover:text-foreground font-medium transition-colors"
-                >
-                  Register
-                </button>
-                <span className="text-border">·</span>
-                <button
-                  onClick={() => navigate('appointment-form')}
-                  className="hover-scale text-muted-foreground hover:text-foreground font-medium transition-colors"
-                >
-                  Appointment Form
-                </button>
-              </div>
+              <button
+                onClick={() => navigate('register-step-1')}
+                className="hover-scale text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+              >
+                Register
+              </button>
             </motion.div>
           </div>
+
+          {/* Appointment Application Card - Prominent */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <Card
+              className="group cursor-pointer border-border/40 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+              onClick={() => navigate('appointment-form')}
+            >
+              <CardContent className="flex items-center gap-4 p-4 sm:p-5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/15">
+                  <ClipboardList className="text-primary h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm tracking-tight">Apply for Appointment</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5 truncate">
+                    Submit your appointment application form
+                  </p>
+                </div>
+                <ChevronRight className="text-muted-foreground/50 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Track Application Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <Card
+              className="group cursor-pointer border-border/40 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+              onClick={() => navigate('track-application')}
+            >
+              <CardContent className="flex items-center gap-4 p-4 sm:p-5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 transition-colors group-hover:bg-emerald-500/15">
+                  <FileText className="text-emerald-600 dark:text-emerald-400 h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm tracking-tight">Track Application</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5 truncate">
+                    Check your appointment application status
+                  </p>
+                </div>
+                <ChevronRight className="text-muted-foreground/50 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Bottom branding */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.4 }}
-            className="mt-6 text-center text-xs text-muted-foreground/60"
+            transition={{ delay: 0.8, duration: 0.4 }}
+            className="text-center text-xs text-muted-foreground/60"
           >
             Secure employee salary management
           </motion.p>

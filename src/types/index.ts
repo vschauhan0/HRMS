@@ -93,12 +93,20 @@ export interface EmployeeBankDetail {
 }
 
 // Appointment Form
+export interface FamilyMember {
+  name: string;
+  relation: string;
+  dob: string;
+  mobile: string;
+  occupation: string;
+}
+
 export interface AppointmentForm {
   id: string;
   applicationNo: string;
-  fullName: string;
-  email: string;
-  mobile: string;
+  fullName: string | null;
+  email: string | null;
+  mobile: string | null;
   companyId: string;
   branchId: string;
   status: ApplicationStatus;
@@ -111,6 +119,39 @@ export interface AppointmentForm {
   updatedAt: string;
   company?: Company;
   branch?: Branch;
+  // Expanded fields
+  employeeCode?: string | null;
+  joiningDate?: string | null;
+  department?: string | null;
+  designation?: string | null;
+  managerName?: string | null;
+  salary?: number | null;
+  whatsappNo?: string | null;
+  punchingNo?: string | null;
+  firstName?: string | null;
+  middleName?: string | null;
+  surname?: string | null;
+  address?: string | null;
+  village?: string | null;
+  taluka?: string | null;
+  district?: string | null;
+  dob?: string | null;
+  birthPlace?: string | null;
+  gender?: string | null;
+  cast?: string | null;
+  maritalStatus?: string | null;
+  bloodGroup?: string | null;
+  referenceName?: string | null;
+  referenceMobile?: string | null;
+  aadharNumber?: string | null;
+  panNumber?: string | null;
+  bankName?: string | null;
+  bankIfsc?: string | null;
+  bankAccountNo?: string | null;
+  education?: string | null;
+  familyMembers?: string | null;
+  photoPath?: string | null;
+  signaturePath?: string | null;
 }
 
 // Salary Batch

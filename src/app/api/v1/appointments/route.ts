@@ -20,32 +20,51 @@ async function getAuthUser(request: Request) {
   });
 }
 
+function saveUploadedFile(file: File, folder: string): string {
+  const uploadDir = path.join(process.cwd(), 'uploads', folder);
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  const fileExtension = path.extname(file.name) || '.bin';
+  const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${fileExtension}`;
+  const filePath = path.join(uploadDir, fileName);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  fs.writeFileSync(filePath, buffer);
+  return `uploads/${folder}/${fileName}`;
+}
+
 // POST - Public (no auth required)
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type') || '';
     let body: any;
-    let file: File | null = null;
+    let photoFile: File | null = null;
+    let signatureFile: File | null = null;
+    let documentFile: File | null = null;
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
-      body = {
-        fullName: formData.get('fullName') as string,
-        email: formData.get('email') as string,
-        mobile: formData.get('mobile') as string,
-        companyId: formData.get('companyId') as string,
-        branchId: formData.get('branchId') as string,
-      };
-      file = formData.get('document') as File | null;
+      body = Object.fromEntries(
+        Array.from(formData.entries()).filter(([key]) => {
+          const val = formData.get(key);
+          return !(val instanceof File);
+        })
+      );
+      // Get files
+      const photo = formData.get('photo') as File | null;
+      const signature = formData.get('signature') as File | null;
+      const doc = formData.get('document') as File | null;
+      if (photo && photo.size > 0) photoFile = photo;
+      if (signature && signature.size > 0) signatureFile = signature;
+      if (doc && doc.size > 0) documentFile = doc;
     } else {
       body = await request.json();
     }
 
-    const { fullName, email, mobile, companyId, branchId } = body;
-
-    if (!fullName || !email || !mobile || !companyId || !branchId) {
+    const { companyId, branchId } = body;
+    if (!companyId || !branchId) {
       return NextResponse.json(
-        { success: false, message: 'fullName, email, mobile, companyId, and branchId are required' },
+        { success: false, message: 'Company and branch are required' },
         { status: 400 }
       );
     }
@@ -55,39 +74,63 @@ export async function POST(request: NextRequest) {
       where: { id: branchId },
       include: { company: true },
     });
-
     if (!branch || branch.companyId !== companyId) {
       return NextResponse.json({ success: false, message: 'Invalid company or branch' }, { status: 400 });
     }
 
+    // Save files
+    let photoPath: string | null = null;
+    let signaturePath: string | null = null;
     let documentPath: string | null = null;
 
-    // Save document if provided
-    if (file && file.size > 0) {
-      const uploadDir = path.join(process.cwd(), 'uploads', 'appointments');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
-      const fileExtension = path.extname(file.name) || '.pdf';
-      const fileName = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${fileExtension}`;
-      const filePath = path.join(uploadDir, fileName);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      fs.writeFileSync(filePath, buffer);
-      documentPath = `uploads/appointments/${fileName}`;
-    }
+    if (photoFile) photoPath = saveUploadedFile(photoFile, 'appointments/photos');
+    if (signatureFile) signaturePath = saveUploadedFile(signatureFile, 'appointments/signatures');
+    if (documentFile) documentPath = saveUploadedFile(documentFile, 'appointments/documents');
 
     const applicationNo = generateApplicationNo();
+    const fullName = [body.firstName, body.middleName, body.surname].filter(Boolean).join(' ');
 
     const appointment = await db.appointmentForm.create({
       data: {
         applicationNo,
-        fullName,
-        email,
-        mobile,
+        fullName: fullName || null,
+        email: body.email || null,
+        mobile: body.mobile || null,
         companyId,
         branchId,
         documentPath,
+        employeeCode: body.employeeCode || null,
+        joiningDate: body.joiningDate ? new Date(body.joiningDate) : null,
+        department: body.department || null,
+        designation: body.designation || null,
+        managerName: body.managerName || null,
+        salary: body.salary ? parseFloat(body.salary) : null,
+        whatsappNo: body.whatsappNo || null,
+        punchingNo: body.punchingNo || null,
+        firstName: body.firstName || null,
+        middleName: body.middleName || null,
+        surname: body.surname || null,
+        address: body.address || null,
+        village: body.village || null,
+        taluka: body.taluka || null,
+        district: body.district || null,
+        dob: body.dob ? new Date(body.dob) : null,
+        birthPlace: body.birthPlace || null,
+        gender: body.gender || null,
+        cast: body.cast || null,
+        maritalStatus: body.maritalStatus || null,
+        bloodGroup: body.bloodGroup || null,
+        referenceName: body.referenceName || null,
+        referenceMobile: body.referenceMobile || null,
+        aadharNumber: body.aadharNumber || null,
+        panNumber: body.panNumber || null,
+        bankName: body.bankName || null,
+        bankIfsc: body.bankIfsc || null,
+        bankAccountNo: body.bankAccountNo || null,
+        education: body.education || null,
+        familyMembers: body.familyMembers || null,
+        photoPath,
+        signaturePath,
       },
     });
 
@@ -122,11 +165,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     const where: any = {};
-
     if (user.role === 'ADMIN') {
       where.companyId = user.adminProfile!.companyId;
     }
-
     if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status.toUpperCase())) {
       where.status = status.toUpperCase();
     }

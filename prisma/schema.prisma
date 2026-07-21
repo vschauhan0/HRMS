@@ -147,21 +147,55 @@ model EmployeeBankDetail {
 // ==================== APPOINTMENT FORMS ====================
 
 model AppointmentForm {
-  id              String    @id @default(cuid())
-  applicationNo   String    @unique
-  fullName        String
-  email           String
-  mobile          String
-  companyId       String
-  branchId        String
-  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  documentPath    String?
-  submittedAt     DateTime  @default(now())
-  reviewedAt      DateTime?
-  reviewedBy      String?
-  rejectionReason String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  applicationNo     String    @unique
+  fullName          String?
+  email             String?
+  mobile            String?
+  companyId         String
+  branchId          String
+  status            String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  documentPath      String?
+  submittedAt       DateTime  @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+  rejectionReason   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Expanded appointment fields
+  employeeCode      String?
+  joiningDate       DateTime?
+  department        String?
+  designation       String?
+  managerName       String?
+  salary            Float?
+  whatsappNo        String?
+  punchingNo        String?
+  firstName         String?
+  middleName        String?
+  surname           String?
+  address           String?
+  village           String?
+  taluka            String?
+  district          String?
+  dob               DateTime?
+  birthPlace        String?
+  gender            String?
+  cast              String?
+  maritalStatus     String?
+  bloodGroup        String?
+  referenceName     String?
+  referenceMobile   String?
+  aadharNumber      String?
+  panNumber         String?
+  bankName          String?
+  bankIfsc          String?
+  bankAccountNo     String?
+  education         String?
+  familyMembers     String?   // JSON string: [{name, relation, dob, mobile, occupation}]
+  photoPath         String?
+  signaturePath     String?
 
   company  Company   @relation(fields: [companyId], references: [id])
   branch   Branch    @relation(fields: [branchId], references: [id])

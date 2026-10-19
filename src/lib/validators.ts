@@ -6,8 +6,8 @@ export const loginSchema = z.object({
 });
 
 export const requestRegistrationSchema = z.object({
-  employeeCode: z.string().min(1, 'Employee code is required'),
-  email: z.email('Invalid email address'),
+  employeeCode: z.string().min(1, 'Employee / Admin code is required'),
+  email: z.string().email('Valid email is required'),
 });
 
 export const verifyOtpSchema = z.object({

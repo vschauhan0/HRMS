@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { LogOut, Settings, Lock, Building2 } from 'lucide-react';
+import { LogOut, Settings, Lock, Building2, CalendarCheck, LogIn } from 'lucide-react';
 import type { PageRoute } from '@/types';
 
 export function BottomNav() {
@@ -82,6 +82,20 @@ export function BottomNav() {
                       >
                         <FileText className="h-5 w-5 text-muted-foreground" />
                         Salary Slips
+                      </button>
+                      <button
+                        onClick={() => navigate('my-attendance')}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm hover:bg-accent transition-colors"
+                      >
+                        <CalendarCheck className="h-5 w-5 text-muted-foreground" />
+                        Attendance
+                      </button>
+                      <button
+                        onClick={() => navigate('my-leaves')}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm hover:bg-accent transition-colors"
+                      >
+                        <LogIn className="h-5 w-5 text-muted-foreground" />
+                        Leaves
                       </button>
                       <button
                         onClick={() => navigate('my-form16')}

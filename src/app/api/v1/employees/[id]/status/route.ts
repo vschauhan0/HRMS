@@ -11,7 +11,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: payload.id as string },
@@ -72,16 +72,17 @@ export async function PATCH(
     const employee = await db.employee.update({
       where: { id },
       data: { status },
-      include: {
-        company: true,
-        branch: true,
-      },
+      include: { company: true, branch: true },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: employee,
-    });
+    const empUser = await db.user.findFirst({ where: { employeeId: id } });
+    if (empUser) {
+      await db.notification.create({
+        data: { userId: empUser.id, title: 'Status Updated', message: `Your status has been changed to ${status}.`, type: status === 'ACTIVE' ? 'SUCCESS' : 'WARNING', link: 'my-profile' },
+      });
+    }
+
+    return NextResponse.json({ success: true, data: employee });
   } catch (error) {
     console.error('Update employee status error:', error);
     return NextResponse.json(

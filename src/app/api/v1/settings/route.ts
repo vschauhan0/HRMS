@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { settings } = body;
+    const settings = body.settings || body; // Support both { settings: {...} } and direct object
 
     if (!settings || typeof settings !== 'object' || Object.keys(settings).length === 0) {
       return NextResponse.json(
@@ -86,12 +86,34 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Upsert each setting
-    for (const [key, value] of Object.entries(settings)) {
+    // Upsert each setting, flatten nested objects like notifications
+    const flattenSettings = (obj: any, prefix = '') => {
+      let flat: Record<string, string> = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v === 'object' && v !== null) {
+          Object.assign(flat, flattenSettings(v, `${prefix}${k}.`));
+        } else {
+          flat[`${prefix}${k}`] = String(v);
+        }
+      }
+      return flat;
+    };
+
+    const flatSettings = flattenSettings(settings);
+
+    for (const [key, value] of Object.entries(flatSettings)) {
       await db.settings.upsert({
         where: { key },
-        create: { key, value: String(value) },
-        update: { value: String(value) },
+        create: { key, value },
+        update: { value },
+      });
+    }
+
+    // Mark admin profile as completed if they save settings
+    if (user.role === 'ADMIN' && user.adminProfile && !user.adminProfile.profileCompleted) {
+      await db.adminProfile.update({
+        where: { id: user.adminProfile.id },
+        data: { profileCompleted: true },
       });
     }
 

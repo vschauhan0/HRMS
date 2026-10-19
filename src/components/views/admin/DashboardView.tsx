@@ -30,7 +30,7 @@ interface StatCardProps {
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
   const prevValue = useRef(0);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     const start = prevValue.current;
@@ -95,7 +95,7 @@ function StatCard({ icon, value, label, gradient, delay }: StatCardProps) {
 export default function DashboardView() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user, isSuperAdmin, selectedCompany } = useAuthStore();
+  const { user, isSuperAdmin, selectedCompany, selectedBranch } = useAuthStore();
 
   const userName = user?.adminProfile?.name
     || (user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : null)
@@ -110,6 +110,9 @@ export default function DashboardView() {
         if (selectedCompany?.id) {
           params.set('companyId', selectedCompany.id);
         }
+        if (selectedBranch?.id) {
+          params.set('branchId', selectedBranch.id);
+        }
         const query = params.toString() ? `?${params.toString()}` : '';
         const data = await apiGet<DashboardStats>(`/reports/dashboard${query}`);
         setStats(data);
@@ -120,7 +123,7 @@ export default function DashboardView() {
       }
     }
     fetchData();
-  }, [selectedCompany]);
+  }, [selectedCompany, selectedBranch]);
 
   const statCards = stats
     ? [
@@ -212,6 +215,7 @@ export default function DashboardView() {
           {selectedCompany && (
             <p className="mt-0.5 text-sm text-muted-foreground">
               Viewing data for <span className="font-medium" style={{ color: selectedCompany.themeColor }}>{selectedCompany.name}</span>
+              {selectedBranch && <span> - <span className="font-medium">{selectedBranch.name}</span></span>}
             </p>
           )}
         </div>

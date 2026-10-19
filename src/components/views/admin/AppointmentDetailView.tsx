@@ -56,7 +56,7 @@ export default function AppointmentDetailView() {
 
   async function handleReject() {
     if (!appointmentId || !rejectReason.trim()) return; setActionLoading(true);
-    try { await apiPatch(`/appointments/${appointmentId}/reject`, { reason: rejectReason }); toast.success('Rejected'); setShowRejectDialog(false); setRejectReason(''); setAppointment((p) => p ? { ...p, status: 'REJECTED', rejectionReason } : null); }
+    try { await apiPatch(`/appointments/${appointmentId}/reject`, { reason: rejectReason }); toast.success('Rejected'); setShowRejectDialog(false); setRejectReason(''); setAppointment((p) => p ? { ...p, status: 'REJECTED', rejectionReason: rejectReason } : null); }
     catch (err: any) { toast.error(err.message || 'Failed'); } finally { setActionLoading(false); }
   }
 
@@ -92,7 +92,7 @@ export default function AppointmentDetailView() {
         <Card className="lg:col-span-1">
           <CardContent className="p-4 flex flex-col items-center">
             {appointment.photoPath ? (
-              <img src={`/${appointment.photoPath}`} alt="Photo" className="w-32 h-40 rounded-lg object-cover border" />
+              <img src={appointment.photoPath?.startsWith('http') ? appointment.photoPath : `/${appointment.photoPath}`} alt="Photo" className="w-32 h-40 rounded-lg object-cover border" />
             ) : (
               <div className="w-32 h-40 rounded-lg bg-muted flex items-center justify-center border border-dashed"><User className="h-12 w-12 text-muted-foreground/40" /></div>
             )}

@@ -45,11 +45,11 @@ export default function SalaryBatchDetailView() {
   const fetchData = useCallback(async () => {
     if (!batchId) return;
     try {
-      const res = await apiGet<SalaryBatch & { slips: SalarySlip[] }>(
+      const res = await apiGet<any>(
         `/salary/batches/${batchId}`
       );
       setBatch(res);
-      setSlips(res.slips || []);
+      setSlips(res.salarySlips || []);
     } catch {
       toast.error('Failed to load batch details');
     } finally {

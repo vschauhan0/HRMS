@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -77,11 +77,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: formattedBatches,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      data: {
+        data: formattedBatches,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error: any) {
     console.error('Salary batches list error:', error);

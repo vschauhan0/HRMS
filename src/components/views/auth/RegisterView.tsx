@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
 
 import {
   requestRegistrationSchema,
@@ -32,7 +34,6 @@ export default function RegisterView() {
   const [email, setEmail] = useState('');
   const [otpValue, setOtpValue] = useState('');
 
-  // Step 1 form
   const step1Form = useForm<RequestRegistrationInput>({
     resolver: zodResolver(requestRegistrationSchema),
     defaultValues: { employeeCode: '', email: '' },
@@ -50,9 +51,9 @@ export default function RegisterView() {
   const handleStep1 = async (data: RequestRegistrationInput) => {
     setLoading(true);
     try {
-      const res = await apiPost<{ otp: string }>('/auth/request-registration', data);
+      await apiPost('/auth/request-registration', data);
       setEmail(data.email);
-      toast.success('OTP sent! For demo purposes: ' + res.otp);
+      toast.success('OTP sent to your email!');
       setStep(2);
     } catch (error: any) {
       toast.error(error.message || 'Registration request failed');
@@ -85,8 +86,8 @@ export default function RegisterView() {
     try {
       const res = await apiPost<{ user: any; token: string }>('/auth/create-password', data);
       setAuth(res.user, res.token);
-      toast.success('Registration successful!');
-      navigate('employee-dashboard');
+      toast.success('Registration successful! Please complete your profile.');
+      navigate('my-profile', { isNewUser: true });
     } catch (error: any) {
       toast.error(error.message || 'Password creation failed');
     } finally {
@@ -140,12 +141,12 @@ export default function RegisterView() {
             <CardContent>
               <form onSubmit={step1Form.handleSubmit(handleStep1)} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="employeeCode">Employee Code</Label>
+                  <Label htmlFor="employeeCode">Employee / Admin Code</Label>
                   <div className="relative">
                     <ShieldCheck className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
                     <Input
                       id="employeeCode"
-                      placeholder="e.g. EMP-001"
+                      placeholder="e.g. EMP-001 or ADM-001"
                       className="pl-10"
                       {...step1Form.register('employeeCode')}
                       disabled={loading}
@@ -252,11 +253,11 @@ export default function RegisterView() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await apiPost<{ otp: string }>('/auth/request-registration', {
+                    await apiPost('/auth/request-registration', {
                       employeeCode: step1Form.getValues('employeeCode'),
                       email,
                     });
-                    toast.success('OTP resent! For demo: ' + res.otp);
+                    toast.success('OTP resent to your email!');
                   } catch (error: any) {
                     toast.error(error.message || 'Failed to resend OTP');
                   }
@@ -277,17 +278,13 @@ export default function RegisterView() {
               <form onSubmit={step3Form.handleSubmit(handleStep3)} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="new-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      id="new-password"
-                      type="password"
-                      placeholder="Create a strong password"
-                      className="pl-10"
-                      {...step3Form.register('password')}
-                      disabled={loading}
-                    />
-                  </div>
+                  <PasswordInput
+                    id="new-password"
+                    placeholder="Create a strong password"
+                    icon={<Lock className="size-4" />}
+                    {...step3Form.register('password')}
+                    disabled={loading}
+                  />
                   {step3Form.formState.errors.password && (
                     <p className="text-destructive text-sm">
                       {step3Form.formState.errors.password.message}
@@ -295,30 +292,22 @@ export default function RegisterView() {
                   )}
                 </div>
 
+                <PasswordStrength password={step3Form.watch('password') || ''} />
+
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      placeholder="Confirm your password"
-                      className="pl-10"
-                      {...step3Form.register('confirmPassword')}
-                      disabled={loading}
-                    />
-                  </div>
+                  <PasswordInput
+                    id="confirm-password"
+                    placeholder="Confirm your password"
+                    icon={<Lock className="size-4" />}
+                    {...step3Form.register('confirmPassword')}
+                    disabled={loading}
+                  />
                   {step3Form.formState.errors.confirmPassword && (
                     <p className="text-destructive text-sm">
                       {step3Form.formState.errors.confirmPassword.message}
                     </p>
                   )}
-                </div>
-
-                <div className="bg-muted rounded-lg p-3">
-                  <p className="text-muted-foreground text-xs">
-                    Password must be at least 8 characters with uppercase, lowercase, number, and special character.
-                  </p>
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>

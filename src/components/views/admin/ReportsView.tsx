@@ -108,7 +108,7 @@ function EmployeeReportTab() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
             <SelectItem value="PENDING">Pending</SelectItem>
             <SelectItem value="INACTIVE">Inactive</SelectItem>
@@ -267,8 +267,8 @@ function SalaryReportTab() {
         const params = new URLSearchParams();
         params.set('year', selectedYear);
         if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
-        const res = await apiGet<SalarySummaryRow[]>(`/reports/salary?${params.toString()}`);
-        setData(res || []);
+        const res = await apiGet<{ monthly: SalarySummaryRow[], totals: any }>(`/reports/salary?${params.toString()}`);
+        setData(res?.monthly || []);
       } catch {
         setData([]);
       } finally {
@@ -368,8 +368,10 @@ function RegistrationsTab() {
     fetchPending();
   }, [selectedCompany]);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
@@ -444,8 +446,10 @@ function AppointmentsTab() {
     fetchAppointments();
   }, [statusFilter, selectedCompany]);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
@@ -457,7 +461,7 @@ function AppointmentsTab() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="PENDING">Pending</SelectItem>
             <SelectItem value="APPROVED">Approved</SelectItem>
             <SelectItem value="REJECTED">Rejected</SelectItem>

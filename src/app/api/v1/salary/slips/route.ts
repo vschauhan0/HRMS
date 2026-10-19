@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -61,8 +61,9 @@ export async function GET(request: NextRequest) {
         include: {
           employee: {
             include: {
-              company: { select: { id: true, name: true, code: true } },
+              company: { select: { id: true, name: true, code: true, address: true } },
               branch: { select: { id: true, name: true, code: true } },
+              bankDetail: { select: { bankName: true, accountNumber: true } },
             },
           },
         },
@@ -75,11 +76,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: slips,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      data: {
+        data: slips,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error: any) {
     console.error('Salary slips list error:', error);

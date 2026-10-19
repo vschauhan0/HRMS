@@ -11,7 +11,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: payload.id as string },
@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
         include: {
           company: true,
           branch: true,
+          bankDetail: true,
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -116,83 +117,46 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) {
-      return NextResponse.json(
-        { success: false, message: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: 'Authentication required' }, { status: 401 });
     }
-
     if (authUser.role === 'EMPLOYEE') {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
     }
 
     const body = await request.json();
-    const {
-      firstName,
-      lastName,
-      email,
-      mobile,
-      pan,
-      joiningDate,
-      department,
-      designation,
-      branchId,
-      address,
-      companyId: bodyCompanyId,
-    } = body;
+    const { firstName, lastName, email, mobile, employeeCode, branchId, companyId: bodyCompanyId } = body;
 
-    // Validate required fields
-    if (!firstName || !lastName || !email || !mobile || !joiningDate || !branchId) {
+    if (!firstName || !lastName || !email || !mobile || !employeeCode || !branchId) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields: firstName, lastName, email, mobile, joiningDate, branchId' },
+        { success: false, message: 'Missing required fields: firstName, lastName, email, mobile, employeeCode, branchId' },
         { status: 400 }
       );
     }
 
-    // Determine company ID
     let targetCompanyId: string;
     if (authUser.role === 'SUPER_ADMIN') {
       targetCompanyId = bodyCompanyId;
-      if (!targetCompanyId) {
-        return NextResponse.json(
-          { success: false, message: 'companyId is required' },
-          { status: 400 }
-        );
-      }
+      if (!targetCompanyId) return NextResponse.json({ success: false, message: 'companyId is required' }, { status: 400 });
     } else {
       targetCompanyId = authUser.adminProfile?.companyId ?? '';
     }
 
-    // Verify branch belongs to company
     const branch = await db.branch.findFirst({
       where: { id: branchId, companyId: targetCompanyId },
-      include: { company: true },
     });
-
     if (!branch) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid branch for the specified company' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Invalid branch' }, { status: 400 });
     }
 
-    // Check for duplicate email
-    const existingEmail = await db.employee.findFirst({
-      where: { email: email.toLowerCase().trim() },
-    });
-
+    const existingEmail = await db.employee.findFirst({ where: { email: email.toLowerCase().trim() } });
     if (existingEmail) {
-      return NextResponse.json(
-        { success: false, message: 'An employee with this email already exists' },
-        { status: 409 }
-      );
+      return NextResponse.json({ success: false, message: 'Employee with this email already exists' }, { status: 409 });
     }
 
-    // Generate employee code
-    const employeeCode = generateEmployeeCode(branch.company.code, branch.code);
+    const existingCode = await db.employee.findFirst({ where: { employeeCode } });
+    if (existingCode) {
+      return NextResponse.json({ success: false, message: 'Employee code already exists' }, { status: 409 });
+    }
 
     const employee = await db.employee.create({
       data: {
@@ -203,28 +167,21 @@ export async function POST(request: NextRequest) {
         lastName: lastName.trim(),
         email: email.toLowerCase().trim(),
         mobile: mobile.trim(),
-        pan: pan?.trim() || null,
-        joiningDate: new Date(joiningDate),
-        department: department?.trim() || null,
-        designation: designation?.trim() || null,
         status: 'PENDING',
-        address: address?.trim() || null,
       },
-      include: {
-        company: true,
-        branch: true,
-      },
+      include: { company: true, branch: true },
     });
 
-    return NextResponse.json(
-      { success: true, data: employee },
-      { status: 201 }
-    );
+    const empUser = await db.user.findFirst({ where: { employeeId: employee.id } });
+    if (empUser) {
+      await db.notification.create({
+        data: { userId: empUser.id, title: 'Profile Created', message: 'Your employee profile has been created. Please complete your details.', type: 'INFO', link: 'my-profile' },
+      });
+    }
+
+    return NextResponse.json({ success: true, data: employee }, { status: 201 });
   } catch (error) {
     console.error('Create employee error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, Plus, Upload, Download, Pencil, Eye, ChevronLeft, ChevronRight, MoreVertical, UserCheck, UserX, Ban } from 'lucide-react';
+import { Search, Plus, Upload, Download, Pencil, Eye, ChevronLeft, ChevronRight, MoreVertical, UserCheck, UserX, Ban, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useNavStore } from '@/store/nav-store';
 import { useAuthStore } from '@/store/auth-store';
-import { apiGet, apiPatch } from '@/lib/api-client';
+import { apiGet, apiPatch, apiDelete } from '@/lib/api-client';
 import { STATUS_COLORS, PAGE_SIZE } from '@/lib/constants';
 import { toast } from 'sonner';
 import {
@@ -42,7 +42,9 @@ export default function EmployeeListView() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<{ total: number; active: number; inactive: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -92,14 +94,21 @@ export default function EmployeeListView() {
       if (branchFilter !== 'ALL') params.set('branchId', branchFilter);
       if (selectedCompany?.id) params.set('companyId', selectedCompany.id);
 
-      const res = await apiGet<PaginatedResponse<Employee>>(
-        `/employees?${params.toString()}`
-      );
+      const statsParams = new URLSearchParams();
+      if (selectedCompany?.id) statsParams.set('companyId', selectedCompany.id);
+      if (branchFilter !== 'ALL') statsParams.set('branchId', branchFilter);
+
+      const [res, statsRes] = await Promise.all([
+        apiGet<PaginatedResponse<Employee>>(`/employees?${params.toString()}`),
+        apiGet<{ total: number; active: number; inactive: number }>(`/employees/stats?${statsParams.toString()}`).catch(() => null)
+      ]);
       setEmployees(res.data || []);
       setTotal(res.total || 0);
       setTotalPages(res.totalPages || 1);
+      if (statsRes) setStats(statsRes);
     } catch {
       setEmployees([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -119,6 +128,16 @@ export default function EmployeeListView() {
     }
   }
 
+  async function handleDelete(empId: string, name: string) {
+    if (!window.confirm(`Delete employee "${name}"? This action cannot be undone.`)) return;
+    setDeleting(empId);
+    try {
+      await apiDelete(`/employees/${empId}`);
+      toast.success('Employee deleted');
+      fetchEmployees();
+    } catch (err: any) { toast.error(err.message || 'Failed to delete'); } finally { setDeleting(null); }
+  }
+
   function handleExport() {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set('search', debouncedSearch);
@@ -131,7 +150,16 @@ export default function EmployeeListView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+          {stats && (
+            <div className="flex items-center gap-4 text-sm mt-2 font-medium">
+              <span><strong className="text-foreground">{stats.total}</strong> <span className="text-muted-foreground">total employees</span></span>
+              <span><strong className="text-emerald-600 dark:text-emerald-500">{stats.active}</strong> <span className="text-emerald-600/80 dark:text-emerald-500/80">active</span></span>
+              <span><strong className="text-muted-foreground">{stats.inactive}</strong> <span className="text-muted-foreground">inactive</span></span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -281,7 +309,7 @@ export default function EmployeeListView() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            navigate('employee-edit', { id: emp.id, view: true })
+                            navigate('employee-detail', { id: emp.id })
                           }
                         >
                           <Eye className="h-4 w-4" />
@@ -292,7 +320,6 @@ export default function EmployeeListView() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              disabled={emp.status === 'PENDING'}
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
@@ -309,6 +336,10 @@ export default function EmployeeListView() {
                             <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'RESIGNED')}>
                               <UserX className="h-4 w-4 mr-2" />
                               Mark Resigned
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(emp.id, `${emp.firstName} ${emp.lastName}`)} className="text-red-600">
+                              {deleting === emp.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                              Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -380,7 +411,7 @@ export default function EmployeeListView() {
                       variant="ghost"
                       size="sm"
                       onClick={() =>
-                        navigate('employee-edit', { id: emp.id, view: true })
+                        navigate('employee-detail', { id: emp.id })
                       }
                     >
                       <Eye className="h-4 w-4 mr-1" />
@@ -391,7 +422,6 @@ export default function EmployeeListView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={emp.status === 'PENDING'}
                         >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
@@ -408,6 +438,10 @@ export default function EmployeeListView() {
                         <DropdownMenuItem onClick={() => handleStatusChange(emp.id, 'RESIGNED')}>
                           <UserX className="h-4 w-4 mr-2" />
                           Mark Resigned
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(emp.id, `${emp.firstName} ${emp.lastName}`)} className="text-red-600">
+                          {deleting === emp.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

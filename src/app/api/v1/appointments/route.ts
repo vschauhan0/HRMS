@@ -12,7 +12,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -20,8 +20,8 @@ async function getAuthUser(request: Request) {
   });
 }
 
-function saveUploadedFile(file: File, folder: string): string {
-  const uploadDir = path.join(process.cwd(), 'uploads', folder);
+async function saveUploadedFile(file: File, folder: string): Promise<string> {
+  const uploadDir = path.join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads', folder);
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
     let signaturePath: string | null = null;
     let documentPath: string | null = null;
 
-    if (photoFile) photoPath = saveUploadedFile(photoFile, 'appointments/photos');
-    if (signatureFile) signaturePath = saveUploadedFile(signatureFile, 'appointments/signatures');
-    if (documentFile) documentPath = saveUploadedFile(documentFile, 'appointments/documents');
+    if (photoFile) photoPath = await saveUploadedFile(photoFile, 'appointments/photos');
+    if (signatureFile) signaturePath = await saveUploadedFile(signatureFile, 'appointments/signatures');
+    if (documentFile) documentPath = await saveUploadedFile(documentFile, 'appointments/documents');
 
     const applicationNo = generateApplicationNo();
     const fullName = [body.firstName, body.middleName, body.surname].filter(Boolean).join(' ');
@@ -189,11 +189,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: appointments,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      data: {
+        data: appointments,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error: any) {
     console.error('Appointments list error:', error);

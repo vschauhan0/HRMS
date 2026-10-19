@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Upload, ArrowLeft, CheckCircle2, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Upload, ArrowLeft, CheckCircle2, Loader2, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,14 +38,14 @@ interface InvalidRecord {
 }
 
 export default function EmployeeImportView() {
-  const navigate = useNavStore();
-  const { isSuperAdmin, selectedCompany } = useAuthStore();
+  const { navigate } = useNavStore();
+  const { isSuperAdmin, selectedCompany: storeCompany } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  const [companyId, setCompanyId] = useState(selectedCompany?.id || '');
+  const [companyId, setCompanyId] = useState(storeCompany?.id || '');
   const [branchId, setBranchId] = useState('');
 
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload');
@@ -56,19 +56,18 @@ export default function EmployeeImportView() {
   const [validRecords, setValidRecords] = useState<ValidRecord[]>([]);
   const [invalidRecords, setInvalidRecords] = useState<InvalidRecord[]>([]);
 
-  // Fetch companies for super admin
+  // Fetch companies
   useEffect(() => {
-    if (!isSuperAdmin()) return;
     async function fetchCompanies() {
       try {
-        const res = await apiGet<{ data: Company[] }>('/companies?pageSize=100');
-        setCompanies(res.data || []);
+        const data = await apiGet<Company[]>('/companies?pageSize=100');
+        setCompanies(Array.isArray(data) ? data : []);
       } catch {
         setCompanies([]);
       }
     }
     fetchCompanies();
-  }, [isSuperAdmin]);
+  }, []);
 
   // Fetch branches
   useEffect(() => {
@@ -78,10 +77,10 @@ export default function EmployeeImportView() {
     }
     async function fetchBranches() {
       try {
-        const res = await apiGet<{ data: Branch[] }>(
+        const data = await apiGet<Branch[]>(
           `/branches?companyId=${companyId}&pageSize=100`
         );
-        setBranches(res.data || []);
+        setBranches(Array.isArray(data) ? data : []);
       } catch {
         setBranches([]);
       }
@@ -89,8 +88,10 @@ export default function EmployeeImportView() {
     fetchBranches();
   }, [companyId]);
 
-  // For non-super-admin, use selectedCompany
-  const effectiveCompanyId = isSuperAdmin() ? companyId : (selectedCompany?.id || '');
+  // For non-super-admin, use storeCompany
+  const effectiveCompanyId = isSuperAdmin() ? companyId : (storeCompany?.id || '');
+
+  const branchesByCode = new Map(branches.filter(b => b.code).map(b => [b.code, b.name]));
 
   function handleFileSelect(file: File) {
     if (!file.name.match(/\.xlsx?$/i)) {
@@ -107,9 +108,15 @@ export default function EmployeeImportView() {
     }
     setUploading(true);
     try {
+      if (!branchId) {
+        toast.error('Please select a branch');
+        setUploading(false);
+        return;
+      }
       const formData = new FormData();
       formData.append('file', file);
       formData.append('companyId', effectiveCompanyId);
+      formData.append('branchId', branchId);
       const res = await apiUpload<{
         valid: ValidRecord[];
         invalid: InvalidRecord[];
@@ -131,6 +138,7 @@ export default function EmployeeImportView() {
       await apiPost('/employees/import/confirm', {
         records: validRecords,
         companyId: effectiveCompanyId,
+        branchId,
       });
       toast.success(
         `${validRecords.length} employee(s) imported successfully`
@@ -243,9 +251,7 @@ export default function EmployeeImportView() {
                       <TableRow>
                         <TableHead>Code</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead className="hidden sm:table-cell">Branch</TableHead>
-                        <TableHead className="hidden md:table-cell">Department</TableHead>
-                        <TableHead className="hidden lg:table-cell">Designation</TableHead>
+                        <TableHead>Email</TableHead>
                         <TableHead className="hidden sm:table-cell">Mobile</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -253,21 +259,9 @@ export default function EmployeeImportView() {
                       {validRecords.map((r, i) => (
                         <TableRow key={i} className="bg-emerald-50/50 dark:bg-emerald-950/10">
                           <TableCell className="font-mono text-sm">{r.employeeCode}</TableCell>
-                          <TableCell className="text-sm">
-                            {r.firstName} {r.lastName}
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm">
-                            {r.branchCode}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell text-sm">
-                            {r.department || '-'}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm">
-                            {r.designation || '-'}
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell text-sm">
-                            {r.mobile || '-'}
-                          </TableCell>
+                          <TableCell className="text-sm">{r.firstName} {r.lastName}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.email}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{r.mobile || '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -289,18 +283,29 @@ export default function EmployeeImportView() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Row</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Mobile</TableHead>
                         <TableHead>Error</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {invalidRecords.map((r, i) => (
-                        <TableRow key={i} className="bg-red-50/50 dark:bg-red-950/10">
-                          <TableCell className="text-sm font-mono">{r.row}</TableCell>
-                          <TableCell className="text-sm text-red-700 dark:text-red-400">
-                            {r.message}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {invalidRecords.map((r, i) => {
+                        const name = [r.data?.firstName, r.data?.lastName].filter(Boolean).join(' ') || '-';
+                        return (
+                          <TableRow key={i} className="bg-red-50/50 dark:bg-red-950/10">
+                            <TableCell className="text-sm font-mono">{r.row}</TableCell>
+                            <TableCell className="text-sm font-mono">{r.data?.employeeCode || '-'}</TableCell>
+                            <TableCell className="text-sm">{name}</TableCell>
+                            <TableCell className="text-sm">{r.data?.email || '-'}</TableCell>
+                            <TableCell className="text-sm">{r.data?.mobile || '-'}</TableCell>
+                            <TableCell className="text-sm text-red-700 dark:text-red-400 font-medium">
+                              {r.message}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -335,23 +340,21 @@ export default function EmployeeImportView() {
           <CardContent className="p-4 sm:p-6 space-y-6">
             {/* Company & Branch selectors */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {isSuperAdmin() && companies.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Company</Label>
-                  <Select value={companyId} onValueChange={(v) => { setCompanyId(v); setBranchId(''); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select value={companyId || (storeCompany?.id || '')} onValueChange={(v) => { setCompanyId(v); setBranchId(''); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <Label>Branch</Label>
@@ -368,6 +371,14 @@ export default function EmployeeImportView() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Download Template */}
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => window.open('/api/v1/templates?type=employee', '_blank')}>
+                <Download className="h-4 w-4 mr-1.5" />
+                Download Template
+              </Button>
             </div>
 
             {/* Upload area */}
@@ -398,7 +409,7 @@ export default function EmployeeImportView() {
             <Card className="rounded-lg bg-muted/50 border-0">
               <CardContent className="p-3">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Note:</strong> Excel should have columns: Code, Employee Name, Gender, PAN, Address, City, PIN, District, State, Mobile, PF No., ESI No., Bank Name, IFSC, A/c Number, Aadhar Number, Branch, Department, Designation, Date of Joining, DOB, Resignation Date
+                  <strong>Note:</strong> Excel should have columns: Code, Employee Name, Mobile, Email. All columns are required. All other details can be filled by the employee later.
                 </p>
               </CardContent>
             </Card>

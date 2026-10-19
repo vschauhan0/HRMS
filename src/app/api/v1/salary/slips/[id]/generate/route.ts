@@ -13,7 +13,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -80,7 +80,7 @@ export async function POST(
     const payslipData = mapSlipToPayslipData(slip as any, cumulativeTds);
 
     // Generate the PDF buffer
-    const pdfBuffer = buildPayslipPDF(payslipData);
+    const pdfBuffer = await buildPayslipPDF(payslipData);
 
     // Save to disk
     const saveDir = getSaveDir();
@@ -97,7 +97,7 @@ export async function POST(
     });
 
     // Return the PDF as a download
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${fileName}"`,

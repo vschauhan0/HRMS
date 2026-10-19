@@ -156,257 +156,237 @@ export function buildPayslipPDF(data: PayslipData): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', reject);
 
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const leftMargin = doc.page.margins.left;
-  const rightMargin = doc.page.width - doc.page.margins.right;
-  const centerY = leftMargin + pageWidth / 2;
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const leftMargin = doc.page.margins.left;
+    const rightMargin = doc.page.width - doc.page.margins.right;
 
-  const monthName = getMonthName(data.month);
-  const lastDay = getDaysInMonth(data.month, data.year);
-  const mmStr = String(data.month).padStart(2, '0');
+    const monthName = getMonthName(data.month);
+    const lastDay = getDaysInMonth(data.month, data.year);
+    const mmStr = String(data.month).padStart(2, '0');
 
-  // ----- 1. HEADER: Company Name -----
-  doc.font('Helvetica-Bold').fontSize(18);
-  doc.text(data.companyName, 0, 30, { width: doc.page.width, align: 'center' });
+    // Outer border start coordinate
+    const outerStartY = 30;
 
-  // ----- 2. Company Address -----
-  let y = doc.y + 4;
-  if (data.companyAddress) {
-    doc.font('Helvetica').fontSize(9);
-    doc.text(data.companyAddress, 0, y, { width: doc.page.width, align: 'center' });
+    // ----- 1. Logo -----
+    let logoPath = path.join(process.cwd(), 'public', 'logo.png');
+    const isNidhi = data.companyName.toLowerCase().includes('nidhi');
+    if (isNidhi) {
+      logoPath = path.join(process.cwd(), 'public', 'nidhi_impex_logo.png');
+    } else {
+      logoPath = path.join(process.cwd(), 'public', 'silver_star_logo.png');
+    }
+
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, leftMargin + 10, 38, { width: 68, height: 68 });
+    }
+
+    // ----- 2. HEADER TEXT -----
+    const headerTextX = leftMargin + 85;
+    const headerTextWidth = pageWidth - 170;
+
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000');
+    doc.text(data.companyName.toUpperCase(), headerTextX, 36, { width: headerTextWidth, align: 'center' });
+
+    let y = doc.y + 3;
+    if (data.companyAddress) {
+      doc.font('Helvetica-Bold').fontSize(8.5);
+      doc.text(data.companyAddress.toUpperCase(), headerTextX, y, { width: headerTextWidth, align: 'center' });
+      y = doc.y + 4;
+    }
+
+    doc.font('Helvetica-Bold').fontSize(11);
+    doc.text(`Pay Slip For the Month of ${monthName}-${data.year}`, headerTextX, y, {
+      width: headerTextWidth,
+      align: 'center',
+    });
     y = doc.y + 2;
-  }
 
-  // ----- 3. Title -----
-  y += 6;
-  doc.font('Helvetica-Bold').fontSize(11);
-  doc.text(`Pay Slip For the Month of ${monthName}-${data.year}`, 0, y, {
-    width: doc.page.width,
-    align: 'center',
-  });
-  y = doc.y + 2;
+    doc.font('Helvetica-Bold').fontSize(9);
+    doc.text(`(From 01/${mmStr}/${data.year} To ${lastDay}/${mmStr}/${data.year})`, headerTextX, y, {
+      width: headerTextWidth,
+      align: 'center',
+    });
+    y = doc.y + 12;
 
-  // ----- 4. Period -----
-  doc.font('Helvetica').fontSize(9);
-  doc.text(`(From 01/${mmStr}/${data.year} To ${lastDay}/${mmStr}/${data.year})`, 0, y, {
-    width: doc.page.width,
-    align: 'center',
-  });
-  y = doc.y + 8;
+    // Header divider line
+    doc.moveTo(leftMargin, y).lineTo(rightMargin, y).lineWidth(1.5).stroke('#000000');
+    y += 12;
 
-  // ----- Helper: Draw bordered box -----
-  function drawBox(
-    x: number,
-    boxY: number,
-    w: number,
-    h: number,
-    content: (innerX: number, innerY: number) => void
-  ) {
-    doc.rect(x, boxY, w, h).stroke('#333');
-    content(x + 6, boxY + 6);
-  }
+    // ----- 3. Employee Info Box -----
+    const infoStartY = y;
+    doc.rect(leftMargin, infoStartY, pageWidth, 56 + 28).lineWidth(1).stroke('#000000');
 
-  // ----- 5. Employee Info Box -----
-  const infoBoxHeight = 72;
-  const colWidth = pageWidth / 2 - 4;
-
-  const infoItems: Array<{ label: string; value: string }> = [
-    { label: 'Employee Name', value: data.employeeName },
-    { label: 'Employee Code', value: data.employeeCode },
-    { label: 'Bank A/c No.', value: data.bankAccountNumber || '-' },
-    { label: 'Bank Name', value: data.bankName || '-' },
-    { label: 'UAN', value: data.uan || '-' },
-    { label: 'Mobile', value: data.mobile },
-  ];
-
-  const infoRightItems: Array<{ label: string; value: string }> = [
-    { label: 'Designation', value: data.designation || '-' },
-    { label: 'Unit', value: data.branchName },
-  ];
-
-  const infoRowHeight = 10;
-  const infoStartY = y;
-
-  // Draw left column box
-  drawBox(leftMargin, infoStartY, colWidth, infoBoxHeight, (ix, iy) => {
+    // Details rows
     doc.font('Helvetica').fontSize(8.5);
-    let rowY = iy;
-    for (const item of infoItems) {
-      doc.font('Helvetica-Bold').fontSize(8.5).text(item.label, ix, rowY, { continued: true, width: colWidth - 16 });
-      doc.font('Helvetica').text(`: ${item.value}`, { width: colWidth - 16 });
-      rowY += infoRowHeight;
+    // Row 1
+    doc.font('Helvetica').text('Employee Name', leftMargin + 6, infoStartY + 4);
+    doc.font('Helvetica-Bold').text(`: ${data.employeeName}`, leftMargin + 96, infoStartY + 4);
+    doc.font('Helvetica').text('Employee Code', leftMargin + 260, infoStartY + 4);
+    doc.font('Helvetica-Bold').text(`: ${data.employeeCode}`, leftMargin + 350, infoStartY + 4);
+
+    // Row 2
+    doc.font('Helvetica').text('Bank A/c No.', leftMargin + 6, infoStartY + 18);
+    doc.font('Helvetica-Bold').text(`: ${data.bankAccountNumber || '-'}`, leftMargin + 96, infoStartY + 18);
+    doc.font('Helvetica').text('Bank Name', leftMargin + 260, infoStartY + 18);
+    doc.font('Helvetica-Bold').text(`: ${data.bankName || '-'}`, leftMargin + 350, infoStartY + 18);
+
+    // Row 3
+    doc.font('Helvetica').text('UAN', leftMargin + 6, infoStartY + 32);
+    doc.font('Helvetica-Bold').text(`: ${data.uan || '-'}`, leftMargin + 96, infoStartY + 32);
+    doc.font('Helvetica').text('Mobile', leftMargin + 260, infoStartY + 32);
+    doc.font('Helvetica-Bold').text(`: ${data.mobile || '-'}`, leftMargin + 350, infoStartY + 32);
+
+    // Row 4
+    doc.font('Helvetica').text('Designation', leftMargin + 6, infoStartY + 46);
+    doc.font('Helvetica-Bold').text(`: ${data.designation || '-'}`, leftMargin + 96, infoStartY + 46, { width: 160 });
+    doc.font('Helvetica').text('Unit', leftMargin + 260, infoStartY + 46);
+    doc.font('Helvetica-Bold').text(`: ${data.branchName || '-'}`, leftMargin + 350, infoStartY + 46, { width: 160 });
+
+    // Attendance Divider
+    doc.moveTo(leftMargin, infoStartY + 58).lineTo(rightMargin, infoStartY + 58).stroke('#000000');
+    // Vertical split
+    doc.moveTo(leftMargin + pageWidth / 2, infoStartY + 58).lineTo(leftMargin + pageWidth / 2, infoStartY + 84).stroke('#000000');
+
+    // Attendance Info
+    doc.font('Helvetica-Bold').fontSize(8.5);
+    doc.text('Total Paid Days', leftMargin + 6, infoStartY + 62);
+    doc.text(`: ${data.totalPaidDays}`, leftMargin + 220, infoStartY + 62);
+
+    doc.text('LWP', leftMargin + pageWidth / 2 + 6, infoStartY + 62);
+    doc.text(`: ${data.lwp}`, leftMargin + pageWidth / 2 + 220, infoStartY + 62);
+
+    doc.text('Net Paid Days', leftMargin + 6, infoStartY + 73);
+    doc.text(`: ${data.netPaidDays}`, leftMargin + 220, infoStartY + 73);
+
+    y = infoStartY + 84 + 12;
+
+    // ----- 4. Earnings & Deductions Table -----
+    const tableStartY = y;
+    const tableHeight = 20 + 112 + 20;
+    doc.rect(leftMargin, tableStartY, pageWidth, tableHeight).stroke('#000000');
+
+    // Vertical dividers
+    doc.moveTo(leftMargin + 127.64, tableStartY).lineTo(leftMargin + 127.64, tableStartY + tableHeight).stroke('#000000');
+    doc.moveTo(leftMargin + 192.64, tableStartY).lineTo(leftMargin + 192.64, tableStartY + tableHeight).stroke('#000000');
+    doc.moveTo(leftMargin + 257.64, tableStartY).lineTo(leftMargin + 257.64, tableStartY + tableHeight).stroke('#000000');
+    doc.moveTo(leftMargin + 385.28, tableStartY).lineTo(leftMargin + 385.28, tableStartY + tableHeight).stroke('#000000');
+    doc.moveTo(leftMargin + 450.28, tableStartY).lineTo(leftMargin + 450.28, tableStartY + tableHeight).stroke('#000000');
+
+    // Horizontal lines
+    doc.moveTo(leftMargin, tableStartY + 20).lineTo(rightMargin, tableStartY + 20).stroke('#000000');
+    for (let i = 1; i <= 7; i++) {
+      const rowLineY = tableStartY + 20 + i * 16;
+      doc.moveTo(leftMargin, rowLineY).lineTo(rightMargin, rowLineY).stroke('#000000');
     }
-  });
 
-  // Draw right column box
-  drawBox(leftMargin + colWidth + 8, infoStartY, colWidth, infoBoxHeight, (ix, iy) => {
-    doc.font('Helvetica').fontSize(8.5);
-    let rowY = iy;
-    for (const item of infoRightItems) {
-      doc.font('Helvetica-Bold').fontSize(8.5).text(item.label, ix, rowY, { continued: true, width: colWidth - 16 });
-      doc.font('Helvetica').text(`: ${item.value}`, { width: colWidth - 16 });
-      rowY += infoRowHeight;
-    }
-  });
-
-  y = infoStartY + infoBoxHeight + 6;
-
-  // ----- 6. Attendance Box -----
-  const attBoxHeight = 26;
-  const attColWidth = pageWidth / 3;
-
-  drawBox(leftMargin, y, pageWidth, attBoxHeight, (ix, iy) => {
-    doc.font('Helvetica').fontSize(8.5);
-    const attItems = [
-      { label: 'Total Paid Days', value: String(data.totalPaidDays) },
-      { label: 'LWP', value: String(data.lwp) },
-      { label: 'Net Paid Days', value: String(data.netPaidDays) },
-    ];
-    let ax = ix;
-    for (const item of attItems) {
-      doc.font('Helvetica-Bold').fontSize(8.5).text(item.label + ': ', ax, iy + 4, { continued: true });
-      doc.font('Helvetica').text(item.value);
-      ax += attColWidth;
-    }
-  });
-
-  y += attBoxHeight + 6;
-
-  // ----- 7. Earnings & Deductions Table -----
-  const tableWidth = pageWidth;
-  const halfTableWidth = tableWidth / 2 - 2;
-  const tableRowHeight = 18;
-  const tableHeaderHeight = 20;
-  const scaleColWidth = halfTableWidth * 0.35;
-  const amountColWidth = halfTableWidth * 0.45;
-  const labelColWidth = halfTableWidth * 0.2;
-
-  // Reusable: draw a table section (Earnings or Deductions)
-  function drawTableSection(
-    startX: number,
-    startY: number,
-    title: string,
-    rows: Array<{ label: string; scale: number; amount: number; isTotal?: boolean }>
-  ) {
-    const tw = halfTableWidth;
-
-    // Title row
-    doc.rect(startX, startY, tw, tableHeaderHeight).fillAndStroke('#e5e5e5', '#333');
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000');
-    doc.text(title, startX, startY + 5, { width: tw, align: 'center' });
-
-    let ry = startY + tableHeaderHeight;
-
-    // Header row
-    doc.rect(startX, ry, tw, tableRowHeight).stroke('#333');
-    // Divider lines
-    doc.moveTo(startX + scaleColWidth, ry).lineTo(startX + scaleColWidth, ry + tableRowHeight).stroke('#333');
-    doc.moveTo(startX + scaleColWidth + amountColWidth, ry).lineTo(startX + scaleColWidth + amountColWidth, ry + tableRowHeight).stroke('#333');
-
-    doc.font('Helvetica-Bold').fontSize(8);
-    doc.text('Particulars', startX + 4, ry + 5, { width: scaleColWidth - 8, align: 'left' });
-    doc.text('Scale Rs.', startX + scaleColWidth + 4, ry + 5, { width: amountColWidth - 8, align: 'right' });
-    doc.text('Amount Rs.', startX + scaleColWidth + amountColWidth + 4, ry + 5, { width: labelColWidth - 8, align: 'right' });
-
-    ry += tableRowHeight;
+    // Headers text
+    doc.font('Helvetica-Bold').fontSize(8.5);
+    doc.text('Earnings', leftMargin + 4, tableStartY + 6);
+    doc.text('Scale Rs.', leftMargin + 127.64 + 4, tableStartY + 6, { width: 61, align: 'right' });
+    doc.text('Amount Rs.', leftMargin + 192.64 + 4, tableStartY + 6, { width: 61, align: 'right' });
+    
+    doc.text('Deductions', leftMargin + 257.64 + 4, tableStartY + 6);
+    doc.text('Scale Rs.', leftMargin + 385.28 + 4, tableStartY + 6, { width: 61, align: 'right' });
+    doc.text('Amount Rs.', leftMargin + 450.28 + 4, tableStartY + 6, { width: 61, align: 'right' });
 
     // Data rows
-    for (const row of rows) {
-      if (row.isTotal) {
-        doc.rect(startX, ry, tw, tableRowHeight).fillAndStroke('#f0f0f0', '#333');
-      } else {
-        doc.rect(startX, ry, tw, tableRowHeight).stroke('#333');
-      }
+    const rows = [
+      { eLab: 'BASIC', eScale: data.basicScale, eAmt: data.basicAmount, dLab: 'PROFESSIONAL TAX', dScale: 0, dAmt: data.professionalTax },
+      { eLab: 'DAILY ALLOWANCE', eScale: data.daScale, eAmt: data.daAmount, dLab: 'PF', dScale: 0, dAmt: data.pf },
+      { eLab: 'HRA', eScale: data.hraScale, eAmt: data.hraAmount, dLab: 'ESI AMOUNT', dScale: 0, dAmt: data.esi },
+      { eLab: 'Conv.A', eScale: data.conveyanceScale, eAmt: data.conveyanceAmount, dLab: 'TDS', dScale: 0, dAmt: data.tds },
+      { eLab: 'Edu.A', eScale: data.medicalScale, eAmt: data.medicalAmount, dLab: 'LWF', dScale: 0, dAmt: data.lwf },
+      { eLab: 'Med.A', eScale: 0, eAmt: 0, dLab: 'ADVANCE', dScale: 0, dAmt: data.advance },
+      { eLab: 'Prod. Ince.', eScale: data.specialAllowScale, eAmt: data.specialAllowAmount, dLab: '', dScale: 0, dAmt: data.otherDeduction },
+    ];
 
-      // Divider lines
-      doc.moveTo(startX + scaleColWidth, ry).lineTo(startX + scaleColWidth, ry + tableRowHeight).stroke('#333');
-      doc.moveTo(startX + scaleColWidth + amountColWidth, ry).lineTo(startX + scaleColWidth + amountColWidth, ry + tableRowHeight).stroke('#333');
-
-      const fontName = row.isTotal ? 'Helvetica-Bold' : 'Helvetica';
-      const fontSize = row.isTotal ? 8.5 : 8;
-
-      doc.font(fontName).fontSize(fontSize);
-      doc.text(row.label, startX + 4, ry + 5, { width: scaleColWidth - 8, align: 'left' });
-      doc.text(formatAmount(row.scale), startX + scaleColWidth + 4, ry + 5, { width: amountColWidth - 8, align: 'right' });
-      doc.text(formatAmount(row.amount), startX + scaleColWidth + amountColWidth + 4, ry + 5, { width: labelColWidth - 8, align: 'right' });
-
-      ry += tableRowHeight;
-    }
-
-    return ry;
-  }
-
-  const earningsRows = [
-    { label: 'BASIC', scale: data.basicScale, amount: data.basicAmount },
-    { label: 'DAILY ALLOWANCE (DA)', scale: data.daScale, amount: data.daAmount },
-    { label: 'HRA', scale: data.hraScale, amount: data.hraAmount },
-    { label: 'Conv.A', scale: data.conveyanceScale, amount: data.conveyanceAmount },
-    { label: 'Edu.A', scale: data.medicalScale, amount: data.medicalAmount },
-    { label: 'Med.A', scale: 0, amount: 0 },
-    { label: 'Prod. Ince.', scale: data.specialAllowScale, amount: data.specialAllowAmount },
-    { label: 'Total Earnings', scale: data.totalEarnings, amount: data.totalEarnings, isTotal: true },
-  ];
-
-  const deductionsRows = [
-    { label: 'PROFESSIONAL TAX', scale: 0, amount: data.professionalTax },
-    { label: 'PF', scale: 0, amount: data.pf },
-    { label: 'ESI AMOUNT', scale: 0, amount: data.esi },
-    { label: 'TDS', scale: 0, amount: data.tds },
-    { label: 'LWF', scale: 0, amount: data.lwf },
-    { label: 'ADVANCE', scale: 0, amount: data.advance },
-    { label: '', scale: 0, amount: data.otherDeduction },
-    { label: 'Total Deductions', scale: data.totalDeductions, amount: data.totalDeductions, isTotal: true },
-  ];
-
-  const earningsEndY = drawTableSection(leftMargin, y, 'EARNINGS', earningsRows);
-  const deductionsEndY = drawTableSection(leftMargin + halfTableWidth + 4, y, 'DEDUCTIONS', deductionsRows);
-
-  y = Math.max(earningsEndY, deductionsEndY) + 6;
-
-  // ----- 8. Net Pay Section -----
-  const netBoxHeight = 32;
-  drawBox(leftMargin, y, pageWidth, netBoxHeight, (ix, iy) => {
-    // Net Pay amount
-    doc.font('Helvetica-Bold').fontSize(9);
-    doc.text('Net Pay:', ix, iy + 2, { continued: true });
-    doc.font('Helvetica-Bold').fontSize(10);
-    doc.text(`  Rs. ${formatAmount(data.netPay)}`);
-
-    // In words
     doc.font('Helvetica').fontSize(8);
-    doc.text(`In Words: Rs. ${numberToWords(data.netPay)}`, ix, iy + 16);
-  });
+    let currentY = tableStartY + 20;
+    for (const row of rows) {
+      // Earnings
+      doc.text(row.eLab, leftMargin + 4, currentY + 4);
+      doc.text(formatAmount(row.eScale), leftMargin + 127.64 + 4, currentY + 4, { width: 61, align: 'right' });
+      doc.text(formatAmount(row.eAmt), leftMargin + 192.64 + 4, currentY + 4, { width: 61, align: 'right' });
 
-  y += netBoxHeight + 4;
-
-  // ----- 9. Misc Section -----
-  const miscBoxHeight = 22;
-  drawBox(leftMargin, y, pageWidth, miscBoxHeight, (ix, iy) => {
-    doc.font('Helvetica').fontSize(8.5);
-    doc.text(`SALARY: ${formatAmount(data.salary)}`, ix, iy + 3, { continued: true, width: pageWidth - 16 });
-
-    if (data.cumulativeTds != null) {
-      const tdsText = `TDS Deducted Upto ${monthName}-${data.year}: Rs. ${formatAmount(data.cumulativeTds)}`;
-      doc.text('    ' + tdsText);
+      // Deductions
+      if (row.dLab) {
+        doc.text(row.dLab, leftMargin + 257.64 + 4, currentY + 4);
+        doc.text(formatAmount(row.dScale), leftMargin + 385.28 + 4, currentY + 4, { width: 61, align: 'right' });
+        doc.text(formatAmount(row.dAmt), leftMargin + 450.28 + 4, currentY + 4, { width: 61, align: 'right' });
+      } else if (row.dAmt > 0) {
+        doc.text(formatAmount(row.dAmt), leftMargin + 450.28 + 4, currentY + 4, { width: 61, align: 'right' });
+      }
+      currentY += 16;
     }
-  });
 
-  y += miscBoxHeight + 10;
+    // Totals row
+    doc.font('Helvetica-Bold').fontSize(8.5);
+    doc.text('Total Earnings', leftMargin + 4, currentY + 5);
+    doc.text(formatAmount(data.totalEarnings), leftMargin + 127.64 + 4, currentY + 5, { width: 61, align: 'right' });
+    doc.text(formatAmount(data.totalEarnings), leftMargin + 192.64 + 4, currentY + 5, { width: 61, align: 'right' });
 
-  // ----- 10. Footer -----
-  doc.font('Helvetica').fontSize(7);
-  doc.text('This is Computer Generated Sheet, does not require Signature.', leftMargin, y, {
-    width: pageWidth * 0.6,
-    align: 'left',
-  });
-  doc.font('Helvetica-Bold').fontSize(8);
-  doc.text(data.companyName, 0, y, {
-    width: doc.page.width,
-    align: 'right',
-    indent: 40,
-  });
+    doc.text('Total Deductions', leftMargin + 257.64 + 4, currentY + 5);
+    doc.text(formatAmount(data.totalDeductions), leftMargin + 385.28 + 4, currentY + 5, { width: 61, align: 'right' });
+    doc.text(formatAmount(data.totalDeductions), leftMargin + 450.28 + 4, currentY + 5, { width: 61, align: 'right' });
 
-  doc.end();
+    y = tableStartY + tableHeight;
+
+    // ----- 5. Net Pay Section -----
+    const netStartY = y + 12;
+    doc.rect(leftMargin, netStartY, pageWidth, 32).stroke('#000000');
+    doc.rect(leftMargin + 0.5, netStartY + 0.5, pageWidth - 1, 15).fill('#f9f9f9');
+    doc.moveTo(leftMargin, netStartY + 16).lineTo(rightMargin, netStartY + 16).stroke('#000000');
+
+    // Net Pay Text
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#000000');
+    doc.text('Net Pay', leftMargin + 6, netStartY + 4);
+    doc.text(`: Rs. ${formatAmount(data.netPay)}`, leftMargin + 60, netStartY + 4);
+
+    // In Words Text
+    doc.font('Helvetica-Bold').text('In Words', leftMargin + 6, netStartY + 20);
+    doc.font('Helvetica').text(`: Rs. ${numberToWords(data.netPay)}`, leftMargin + 60, netStartY + 20);
+
+    // ----- 6. Miscellaneous Information -----
+    const miscStartY = netStartY + 32 + 12;
+    const miscHeight = 120;
+    doc.rect(leftMargin, miscStartY, pageWidth, miscHeight).stroke('#000000');
+
+    // Title
+    doc.rect(leftMargin + 0.5, miscStartY + 0.5, pageWidth - 1, 19).fill('#f9f9f9');
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#000000');
+    doc.text('Miscellaneous Information', leftMargin + 6, miscStartY + 6);
+    doc.moveTo(leftMargin, miscStartY + 20).lineTo(rightMargin, miscStartY + 20).stroke('#000000');
+
+    // Salary row
+    const salaryY = miscStartY + 20;
+    doc.font('Helvetica').fontSize(8.5);
+    doc.text('SALARY', leftMargin + 6, salaryY + 5);
+    doc.moveTo(rightMargin - 120, salaryY).lineTo(rightMargin - 120, salaryY + 18).stroke('#000000');
+    doc.font('Helvetica-Bold').text(formatAmount(data.salary || data.totalEarnings), rightMargin - 114, salaryY + 5, { width: 110, align: 'right' });
+    doc.moveTo(leftMargin, salaryY + 18).lineTo(rightMargin, salaryY + 18).stroke('#000000');
+
+    // Content area
+    const contentY = salaryY + 18;
+    doc.font('Helvetica-Oblique').fontSize(8);
+    const tdsText = data.tds ? `Rs. ${formatAmount(data.tds)}` : 'Nil';
+    doc.text(`TDS Deducted Upto ${monthName}-${data.year}: Rs. ${tdsText}`, leftMargin + 6, contentY + 10);
+    
+    doc.font('Helvetica-Bold').fontSize(8.5);
+    doc.text('This is Computer Generated Sheet, does not require Signature.', leftMargin + 6, contentY + 26);
+
+    // Paid On & Company Footer
+    const footerY = miscStartY + miscHeight - 16;
+    doc.font('Helvetica').fontSize(8.5).fillColor('#666666');
+    doc.text('Paid On: -', leftMargin + 6, footerY);
+
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000');
+    doc.text(data.companyName.toUpperCase(), rightMargin - 206, footerY, { width: 200, align: 'right' });
+
+    // ----- 7. Draw Outer border around everything -----
+    const finalY = miscStartY + miscHeight;
+    doc.rect(leftMargin, outerStartY, pageWidth, finalY - outerStartY).lineWidth(1.5).stroke('#000000');
+
+    doc.end();
   });
 }
 
@@ -520,7 +500,7 @@ export function mapSlipToPayslipData(
 }
 
 export function getSaveDir(): string {
-  const dir = path.join(process.cwd(), 'uploads', 'payslips');
+  const dir = path.join(process.cwd(), 'public', 'uploads', 'payslips');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }

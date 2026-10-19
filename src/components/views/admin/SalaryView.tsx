@@ -27,10 +27,10 @@ import { MONTHS, MONTHS_SHORT, PAGE_SIZE } from '@/lib/constants';
 import type { SalaryBatch, Branch, PaginatedResponse } from '@/types';
 
 export default function SalaryView() {
-  const navigate = useNavStore();
+  const { navigate } = useNavStore();
   const { selectedCompany } = useAuthStore();
 
-  const [batches, setBatches] = useState<SalaryBatch[]>([]);
+  const [batches, setBatches] = useState<(SalaryBatch & { uploaderName?: string })[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -205,7 +205,7 @@ export default function SalaryView() {
                       {batch.importedRecords}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {batch.uploadedBy || '-'}
+                      {batch.uploaderName || '-'}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(batch.createdAt).toLocaleDateString()}

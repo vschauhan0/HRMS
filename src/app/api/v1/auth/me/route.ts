@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const payload = verifyToken(token);
+    const payload = verifyToken(token) as { id: string } | null;
     if (!payload) {
       return NextResponse.json(
         { success: false, message: 'Invalid or expired token' },
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
           include: {
             company: true,
             branch: true,
+            bankDetail: true,
           },
         },
       },

@@ -27,7 +27,7 @@ interface SettingsData {
 
 export default function SettingsView() {
   const { user, logout } = useAuthStore();
-  const navigate = useNavStore();
+  const { navigate } = useNavStore();
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

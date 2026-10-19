@@ -30,7 +30,7 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } },
 };
 
 export default function LoginView() {
@@ -56,12 +56,14 @@ export default function LoginView() {
       setAuth(res.user, res.token);
 
       const role = res.user?.role;
-      if (role === 'SUPER_ADMIN') {
-        navigate('admin-dashboard');
-      } else if (role === 'ADMIN') {
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
         navigate('admin-dashboard');
       } else if (role === 'EMPLOYEE') {
-        navigate('employee-dashboard');
+        if (!res.user?.employee?.profileCompleted) {
+          navigate('my-profile');
+        } else {
+          navigate('employee-dashboard');
+        }
       } else {
         navigate('login');
       }
@@ -252,30 +254,7 @@ export default function LoginView() {
             </Card>
           </motion.div>
 
-          {/* Track Application Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <Card
-              className="group cursor-pointer border-border/40 bg-card/60 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
-              onClick={() => navigate('track-application')}
-            >
-              <CardContent className="flex items-center gap-4 p-4 sm:p-5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 transition-colors group-hover:bg-emerald-500/15">
-                  <FileText className="text-emerald-600 dark:text-emerald-400 h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm tracking-tight">Track Application</h3>
-                  <p className="text-muted-foreground text-xs mt-0.5 truncate">
-                    Check your appointment application status
-                  </p>
-                </div>
-                <ChevronRight className="text-muted-foreground/50 h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-              </CardContent>
-            </Card>
-          </motion.div>
+
 
           {/* Bottom branding */}
           <motion.p

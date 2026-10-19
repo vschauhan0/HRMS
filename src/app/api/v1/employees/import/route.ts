@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: payload.id as string },
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet);
+    const rows = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
 
     if (!rows || rows.length === 0) {
       return NextResponse.json(
@@ -110,16 +110,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine companyId
     const companyId = authUser.role === 'ADMIN'
       ? (authUser.adminProfile?.companyId ?? '')
       : (formData.get('companyId') as string | null);
 
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, message: 'Company ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Company ID is required' }, { status: 400 });
+    }
+
+    const branchId = formData.get('branchId') as string | null;
+    if (!branchId) {
+      return NextResponse.json({ success: false, message: 'Branch is required' }, { status: 400 });
     }
 
     const company = await db.company.findUnique({
@@ -128,34 +129,47 @@ export async function POST(request: NextRequest) {
     });
 
     if (!company) {
-      return NextResponse.json(
-        { success: false, message: 'Company not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: 'Company not found' }, { status: 404 });
     }
 
-    // Get all existing employee codes for duplicate check
+    const branchValid = company.branches.some((b) => b.id === branchId);
+    if (!branchValid) {
+      return NextResponse.json({ success: false, message: 'Branch not found in this company' }, { status: 400 });
+    }
+
+    // Get all existing employee codes and user emails for duplicate check
     const existingEmployees = await db.employee.findMany({
-      where: { companyId },
       select: { employeeCode: true, email: true, id: true },
     });
+    const existingCodes = new Map(existingEmployees.map((e) => [e.employeeCode, e.id]));
+    const existingEmployeeEmails = new Map(existingEmployees.map((e) => [e.email.toLowerCase(), e.employeeCode]));
 
-    const existingCodes = new Set(existingEmployees.map((e) => e.employeeCode));
-    const existingEmails = new Set(existingEmployees.map((e) => e.email.toLowerCase()));
-    const existingCodeMap = new Map(existingEmployees.map((e) => [e.employeeCode, e.id]));
+    const existingUsers = await db.user.findMany({
+      select: { email: true, employeeId: true }
+    });
+    const existingUserEmails = new Map(existingUsers.map(u => [u.email.toLowerCase(), u.employeeId]));
 
     const newRecords: Record<string, unknown>[] = [];
     const updatedRecords: Record<string, unknown>[] = [];
     const invalidRecords: { row: number; errors: string[]; data: Record<string, unknown> }[] = [];
+    const seenCodes = new Set<string>();
+    const seenEmails = new Set<string>();
 
-    // Helper: case-insensitive column lookup
     const getVal = (row: Record<string, unknown>, possibleNames: string[]): string => {
       for (const name of possibleNames) {
-        const key = Object.keys(row).find(
-          (k) => k.toLowerCase().trim() === name.toLowerCase()
-        );
+        const key = Object.keys(row).find((k) => k.toLowerCase().trim() === name.toLowerCase());
         if (key && row[key] !== undefined && row[key] !== null) {
-          return String(row[key]).trim();
+          const val = String(row[key]).trim();
+          const valLower = val.toLowerCase();
+          if (
+            valLower !== '' &&
+            valLower !== 'null' &&
+            valLower !== 'undefined' &&
+            valLower !== 'nan' &&
+            valLower !== '-'
+          ) {
+            return val;
+          }
         }
       }
       return '';
@@ -163,34 +177,14 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowNum = i + 2; // Excel row number (1-indexed, header is row 1)
+      const rowNum = i + 2;
       const errors: string[] = [];
 
-      // ── Extract all columns from the template ──
       const employeeCode = getVal(row, ['Code', 'code', 'Employee Code']);
       const employeeName = getVal(row, ['Employee Name', 'employee name', 'employeename', 'EmployeeName', 'Name', 'name']);
-      const gender = getVal(row, ['Gender', 'gender']);
-      const pan = getVal(row, ['PAN', 'Pan', 'Pan Number', 'PAN Number', 'pan number']);
-      const address = getVal(row, ['Address', 'address']);
-      const city = getVal(row, ['City', 'city']);
-      const pin = getVal(row, ['PIN', 'Pin', 'pin', 'PIN Code', 'Pin Code']);
-      const district = getVal(row, ['District', 'district']);
-      const state = getVal(row, ['State', 'state']);
       const mobile = getVal(row, ['Mobile', 'mobile', 'Phone', 'phone', 'Mobile Number', 'Contact Number', 'Contact No']);
-      const pfNo = getVal(row, ['PF No', 'PF No.', 'PF Number', 'PF Number.', 'pf no', 'pf no.', 'pf number']);
-      const esiNo = getVal(row, ['ESI No', 'ESI No.', 'ESI Number', 'ESI Number.', 'esi no', 'esi no.', 'esi number']);
-      const bankName = getVal(row, ['Bank Name', 'bank name', 'bankname', 'Bank']);
-      const ifsc = getVal(row, ['IFSC', 'Ifsc', 'ifsc', 'IFSC Code']);
-      const accountNumber = getVal(row, ['A/c Number', 'Account Number', 'A/c No', 'A/c No.', 'Account No', 'Account No.', 'AC Number', 'ac number', 'account number']);
-      const aadharNumber = getVal(row, ['Aadhar Number', 'aadhar number', 'Aadhar No', 'Aadhar No.', 'Aadhar', 'aadhar', 'Aadhaar Number', 'aadhaar number']);
-      const branchName = getVal(row, ['Branch', 'branch', 'Branch Name', 'branch name']);
-      const department = getVal(row, ['Department', 'department', 'Dept', 'dept']);
-      const designation = getVal(row, ['Designation', 'designation', 'Desig', 'desig']);
-      const joiningDateStr = getVal(row, ['Date of Joining', 'date of joining', 'dateofjoining', 'Joining Date', 'joining date', 'joiningdate', 'DOJ']);
-      const dobStr = getVal(row, ['DOB', 'dob', 'Date of Birth', 'date of birth', 'dateofbirth']);
-      const resignationDateStr = getVal(row, ['Resignation Date', 'resignation date', 'resignationdate']);
+      const email = getVal(row, ['Email', 'email', 'E-mail', 'e-mail']);
 
-      // ── Split Employee Name into firstName and lastName ──
       let firstName = '';
       let lastName = '';
       if (employeeName) {
@@ -199,131 +193,68 @@ export async function POST(request: NextRequest) {
         lastName = parts.slice(1).join(' ');
       }
 
-      // ── Validate required fields ──
       if (!employeeCode) errors.push('Code is required');
       if (!employeeName) errors.push('Employee Name is required');
       if (!firstName) errors.push('Employee Name must have at least a first name');
-      if (!joiningDateStr) errors.push('Date of Joining is required');
-
-      // ── Parse dates ──
-      const joiningDate = parseFlexDate(joiningDateStr);
-      if (joiningDateStr && !joiningDate) {
-        errors.push('Invalid Date of Joining format');
+      if (!mobile) errors.push('Phone number is required');
+      if (!email) {
+        errors.push('Email is required');
+      } else if (!email.includes('@')) {
+        errors.push('Invalid email format');
       }
-
-      const dob = dobStr ? parseFlexDate(dobStr) : null;
-      if (dobStr && !dob) {
-        errors.push('Invalid DOB format');
-      }
-
-      const resignationDate = resignationDateStr ? parseFlexDate(resignationDateStr) : null;
-      if (resignationDateStr && !resignationDate) {
-        errors.push('Invalid Resignation Date format');
-      }
-
-      // ── Match branch by name or code ──
-      let branchId: string | null = null;
-      if (branchName) {
-        const branch = company.branches.find(
-          (b) =>
-            b.name.toLowerCase() === branchName.toLowerCase() ||
-            b.code.toLowerCase() === branchName.toLowerCase()
-        );
-        if (branch) {
-          branchId = branch.id;
-        } else {
-          errors.push(`Branch '${branchName}' not found in company`);
-        }
-      }
-
-      // ── Validate gender if provided ──
-      if (gender && !['Male', 'Female', 'Other', 'MALE', 'FEMALE', 'OTHER'].includes(gender)) {
-        errors.push('Gender must be Male, Female, or Other');
-      }
-
-      // ── Validate mobile if provided ──
-      if (mobile && !/^\d{7,15}$/.test(mobile.replace(/[\s\-+()]/g, ''))) {
-        errors.push('Invalid Mobile number');
-      }
-
-      // ── Validate bank details consistency ──
-      const hasBankDetails = bankName || accountNumber || ifsc;
-      if (hasBankDetails) {
-        if (!bankName) errors.push('Bank Name is required when providing bank details');
-        if (!accountNumber) errors.push('A/c Number is required when providing bank details');
-        if (!ifsc) errors.push('IFSC is required when providing bank details');
-      }
-
-      // ── Auto-generate email ──
-      const generatedEmail = `${firstName.toLowerCase()}.${employeeCode.toLowerCase()}@company.com`;
-
-      // ── Build preview data object ──
-      const data: Record<string, unknown> = {
-        employeeCode,
-        firstName,
-        lastName,
-        email: generatedEmail,
-        gender: gender || null,
-        pan: pan || null,
-        address: address || null,
-        city: city || null,
-        pin: pin || null,
-        district: district || null,
-        state: state || null,
-        mobile: mobile || null,
-        pfNo: pfNo || null,
-        esiNo: esiNo || null,
-        aadharNumber: aadharNumber || null,
-        department: department || null,
-        designation: designation || null,
-        joiningDate: joiningDate ? joiningDate.toISOString() : null,
-        dob: dob ? dob.toISOString() : null,
-        resignationDate: resignationDate ? resignationDate.toISOString() : null,
-        branchId: branchId,
-        companyId,
-        bankDetail: hasBankDetails
-          ? {
-              bankName,
-              accountNumber,
-              ifsc,
-              accountHolder: employeeName,
-            }
-          : null,
-      };
 
       if (errors.length > 0) {
-        invalidRecords.push({ row: rowNum, errors, data });
+        invalidRecords.push({ row: rowNum, errors, data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
         continue;
       }
 
-      // ── Classify as new or update ──
-      if (existingCodes.has(employeeCode)) {
-        updatedRecords.push(data);
-      } else {
-        // Check email duplicate for new records
-        if (existingEmails.has(generatedEmail.toLowerCase())) {
-          // For new records with auto-generated emails, this shouldn't normally happen
-          // unless there's a code collision, but let's be safe
-          const existingId = existingCodeMap.get(employeeCode);
-          if (!existingId) {
-            // Actually a duplicate email issue
-            errors.push('Duplicate email already exists');
-            invalidRecords.push({ row: rowNum, errors, data });
-            continue;
-          }
-        }
-        newRecords.push(data);
+      // Duplicate code in the same file
+      if (seenCodes.has(employeeCode)) {
+        invalidRecords.push({ row: rowNum, errors: [`Duplicate code "${employeeCode}" appears multiple times in the file`], data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
+        continue;
       }
+      seenCodes.add(employeeCode);
+
+      const finalEmail = email.toLowerCase().trim();
+
+      // Duplicate email in the same file
+      if (seenEmails.has(finalEmail)) {
+        invalidRecords.push({ row: rowNum, errors: [`Duplicate email "${finalEmail}" appears multiple times in the file`], data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
+        continue;
+      }
+      seenEmails.add(finalEmail);
+
+      // Check against database
+      const existingEmployeeCode = existingEmployeeEmails.get(finalEmail);
+      if (existingEmployeeCode && existingEmployeeCode !== employeeCode) {
+        invalidRecords.push({ row: rowNum, errors: [`Email "${finalEmail}" is already used by another employee (Code: ${existingEmployeeCode})`], data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
+        continue;
+      }
+
+      const existingUserEmpId = existingUserEmails.get(finalEmail);
+      if (existingUserEmpId && existingCodes.get(employeeCode) !== existingUserEmpId) {
+        invalidRecords.push({ row: rowNum, errors: [`Email "${finalEmail}" is already registered to a user account`], data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
+        continue;
+      }
+
+      if (existingCodes.has(employeeCode)) {
+        invalidRecords.push({ row: rowNum, errors: [`Employee Code "${employeeCode}" already exists in the database`], data: { employeeCode, firstName, lastName, email, mobile, companyId, branchId } });
+        continue;
+      }
+
+      const data: Record<string, unknown> = {
+        employeeCode, firstName, lastName, email: finalEmail, mobile, companyId, branchId,
+      };
+
+      newRecords.push(data);
     }
+
+    const valid = newRecords.map((r: any) => ({ ...r, _isNew: true }));
+    const invalid = invalidRecords.map((r) => ({ row: r.row, message: r.errors.join('; '), data: r.data }));
 
     return NextResponse.json({
       success: true,
-      data: {
-        newRecords,
-        updatedRecords,
-        invalidRecords,
-        totalRows: rows.length,
-      },
+      data: { valid, invalid, totalRows: rows.length },
     });
   } catch (error) {
     console.error('Import preview error:', error);

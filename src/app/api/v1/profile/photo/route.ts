@@ -12,7 +12,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const file = (formData.get('photo') || formData.get('file')) as File | null;
 
     if (!file) {
       return NextResponse.json({ success: false, message: 'File is required' }, { status: 400 });
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'File size must be under 5MB' }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), 'uploads', 'photos');
+    const uploadDir = path.join(/*turbopackIgnore: true*/ process.cwd(), 'public', 'uploads', 'photos');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -76,6 +76,34 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Profile photo upload error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+    if (user.role !== 'EMPLOYEE' || !user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee only' }, { status: 403 });
+    }
+
+    await db.employee.update({
+      where: { id: user.employeeId },
+      data: { profilePhoto: null },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Profile photo removed',
+    });
+  } catch (error: any) {
+    console.error('Profile photo remove error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Internal server error' },
       { status: 500 }

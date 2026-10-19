@@ -42,6 +42,7 @@ export interface AdminProfile {
   mobile: string | null;
   createdAt: string;
   updatedAt: string;
+  profileCompleted?: boolean;
   company?: Company;
 }
 
@@ -73,6 +74,7 @@ export interface Employee {
   status: EmployeeStatus;
   profilePhoto: string | null;
   address: string | null;
+  profileCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
   company?: Company;
@@ -239,6 +241,55 @@ export interface AuthUser {
   employee?: Employee;
 }
 
+// Attendance
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  date: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string; // PRESENT, ABSENT, HALF_DAY, LATE, HOLIDAY, WEEK_OFF
+  remarks: string | null;
+  createdAt: string;
+  updatedAt: string;
+  employee?: Employee;
+}
+
+// Leave Request
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  leaveTypeId?: string;
+  leaveTypeString?: string;
+  leaveType?: any;
+  fromDate: string;
+  toDate: string;
+  totalDays?: number;
+  halfDay?: boolean;
+  reason: string;
+  attachment?: string | null;
+  status: string; // PENDING, APPROVED, REJECTED
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  employee?: Employee;
+  reviewer?: { id: string; email: string };
+}
+
+// Notification
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string; // INFO, WARNING, SUCCESS, ERROR
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 // Navigation pages for the SPA
 export type PageRoute =
   // Public
@@ -249,11 +300,13 @@ export type PageRoute =
   | 'forgot-password'
   | 'appointment-form'
   | 'track-application'
+  | 'more'
   // Admin
   | 'admin-dashboard'
   | 'employees'
   | 'employee-add'
   | 'employee-edit'
+  | 'employee-detail'
   | 'employee-import'
   | 'salary'
   | 'salary-upload'
@@ -275,7 +328,14 @@ export type PageRoute =
   | 'my-salary'
   | 'my-form16'
   | 'my-profile'
-  | 'change-password';
+  | 'change-password'
+  | 'my-attendance'
+  | 'my-leaves'
+  // Admin
+  | 'attendance'
+  | 'attendance-details'
+  | 'leaves'
+  | 'leave-detail';
 
 // Pagination
 export interface PaginatedResponse<T> {
@@ -366,4 +426,24 @@ export interface EmployeeImportRow {
   bankName?: string;
   accountNumber?: string;
   ifsc?: string;
+}
+
+// Monthly Attendance Summary
+export interface MonthlyAttendanceSummary {
+  employeeId: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  company: string;
+  branch: string;
+  department: string | null;
+  present: number;
+  absent: number;
+  leave: number;
+  holiday: number;
+  weekOff: number;
+  late: number;
+  halfDay: number;
+  totalWorkingDays: number;
+  attendancePercentage: number;
 }

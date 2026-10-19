@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { apiGet, apiPost } from '@/lib/api-client';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-client';
 import type { AdminProfile, Company } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -32,7 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { ShieldCheck, Plus, Phone, Mail, UserCircle } from 'lucide-react';
+import { ShieldCheck, Plus, Phone, Mail, UserCircle, Pencil, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function AdminListView() {
@@ -42,13 +52,17 @@ export default function AdminListView() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Form fields
   const [name, setName] = useState('');
+  const [employeeCode, setEmployeeCode] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [mobile, setMobile] = useState('');
   const [companyId, setCompanyId] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // Edit / Delete states
+  const [editAdminId, setEditAdminId] = useState<string | null>(null);
+  const [deleteAdminId, setDeleteAdminId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAdmins = async () => {
     setLoading(true);
@@ -78,34 +92,72 @@ export default function AdminListView() {
     fetchCompanies();
   }, [selectedCompany]);
 
-  const handleCreate = async () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !companyId) {
+  const handleCreateOrUpdate = async () => {
+    if (!name.trim() || !employeeCode.trim() || !email.trim() || !companyId) {
       toast.error('Please fill in all required fields');
       return;
     }
     setCreating(true);
     try {
-      await apiPost('/admins', {
+      const payload: any = {
         name: name.trim(),
+        employeeCode: employeeCode.trim(),
         email: email.trim(),
-        password,
         mobile: mobile.trim() || null,
         companyId,
-      });
-      toast.success('Admin user created successfully');
-      setDialogOpen(false);
-      setName('');
-      setEmail('');
-      setPassword('');
-      setMobile('');
-      setCompanyId('');
+      };
+
+      if (editAdminId) {
+        await apiPut(`/admins/${editAdminId}`, payload);
+        toast.success('Admin user updated successfully');
+      } else {
+        await apiPost('/admins', payload);
+        toast.success('Admin user created successfully');
+      }
+      closeDialog();
       fetchAdmins();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create admin');
+      toast.error(err.message || (editAdminId ? 'Failed to update admin' : 'Failed to create admin'));
     } finally {
       setCreating(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!deleteAdminId) return;
+    setDeleting(true);
+    try {
+      await apiDelete(`/admins/${deleteAdminId}`);
+      toast.success('Admin deleted successfully');
+      setDeleteAdminId(null);
+      fetchAdmins();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete admin');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openEditDialog = (admin: AdminProfile & { company?: Company; email?: string; employeeCode?: string }) => {
+    setEditAdminId(admin.id);
+    setName(admin.name || '');
+    setEmployeeCode(admin.employeeCode || '');
+    setEmail(admin.email || '');
+    setMobile(admin.mobile || '');
+    setCompanyId(admin.companyId || '');
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditAdminId(null);
+    setName('');
+    setEmployeeCode('');
+    setEmail('');
+    setMobile('');
+    setCompanyId('');
+  };
+
 
   return (
     <div className="space-y-6">
@@ -116,7 +168,10 @@ export default function AdminListView() {
           <p className="text-sm text-muted-foreground mt-1">Manage admin accounts</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (!open) closeDialog();
+          else setDialogOpen(true);
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -125,7 +180,7 @@ export default function AdminListView() {
           </DialogTrigger>
           <DialogContent className="rounded-xl sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Add Admin User</DialogTitle>
+              <DialogTitle>{editAdminId ? 'Edit Admin User' : 'Add Admin User'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
@@ -138,6 +193,15 @@ export default function AdminListView() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="admin-emp-code">Employee / Admin Code</Label>
+                <Input
+                  id="admin-emp-code"
+                  value={employeeCode}
+                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  placeholder="e.g. ADM-001"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="admin-email">Email</Label>
                 <Input
                   id="admin-email"
@@ -145,16 +209,6 @@ export default function AdminListView() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@company.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin-password">Password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 8 characters"
                 />
               </div>
               <div className="space-y-2">
@@ -182,20 +236,37 @@ export default function AdminListView() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={closeDialog}>
                 Cancel
               </Button>
-              <Button onClick={handleCreate} disabled={creating}>
+              <Button onClick={handleCreateOrUpdate} disabled={creating}>
                 {creating ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
                 ) : (
-                  <Plus className="h-4 w-4 mr-2" />
+                  editAdminId ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />
                 )}
-                Create
+                {editAdminId ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!deleteAdminId} onOpenChange={(open) => !open && setDeleteAdminId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the admin account and remove their data from our servers.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-500 hover:bg-red-600">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Content */}
@@ -242,6 +313,14 @@ export default function AdminListView() {
                           </p>
                         )}
                       </div>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(admin)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={() => setDeleteAdminId(admin.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -252,19 +331,30 @@ export default function AdminListView() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>Mobile</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {admins.map((admin) => (
+                    {admins.map((admin: any) => (
                       <TableRow key={admin.id}>
+                        <TableCell className="font-mono text-sm">{admin.employeeCode || '—'}</TableCell>
                         <TableCell className="font-medium">{admin.name}</TableCell>
                         <TableCell>{admin.email || '—'}</TableCell>
                         <TableCell>{admin.company?.name || '—'}</TableCell>
                         <TableCell>{admin.mobile || '—'}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEditDialog(admin)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500" onClick={() => setDeleteAdminId(admin.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

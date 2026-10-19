@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         email: a.email,
         role: a.role,
         name: a.adminProfile?.name || null,
+        employeeCode: a.adminProfile?.employeeCode || null,
         mobile: a.adminProfile?.mobile || null,
         company: a.adminProfile?.company || null,
         createdAt: a.createdAt,
@@ -74,11 +75,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, password, mobile, companyId } = body;
+    const { name, employeeCode, email, mobile, companyId } = body;
 
-    if (!name || !email || !password || !companyId) {
+    if (!name || !employeeCode || !email || !companyId) {
       return NextResponse.json(
-        { success: false, message: 'name, email, password, and companyId are required' },
+        { success: false, message: 'name, employeeCode, email, and companyId are required' },
         { status: 400 }
       );
     }
@@ -95,16 +96,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Email already in use' }, { status: 409 });
     }
 
-    const hashedPassword = await hashPassword(password);
-
     const newUser = await db.user.create({
       data: {
-        email,
-        password: hashedPassword,
+        email: email.toLowerCase().trim(),
+        password: null,
         role: 'ADMIN',
         adminProfile: {
           create: {
             companyId,
+            employeeCode: employeeCode.trim(),
             name,
             mobile: mobile || null,
           },
@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
           email: newUser.email,
           role: newUser.role,
           name: newUser.adminProfile?.name,
+          employeeCode: newUser.adminProfile?.employeeCode,
           company: newUser.adminProfile?.company,
         },
       },

@@ -8,7 +8,6 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -25,16 +24,12 @@ import { toast } from 'sonner';
 import type { Employee, Branch, Company } from '@/types';
 
 const employeeSchema = z.object({
+  employeeCode: z.string().min(1, 'Employee code is required'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   mobile: z.string().min(1, 'Mobile is required'),
-  pan: z.string().optional(),
-  joiningDate: z.string().min(1, 'Joining date is required'),
-  department: z.string().optional(),
-  designation: z.string().optional(),
   branchId: z.string().min(1, 'Branch is required'),
-  address: z.string().optional(),
 });
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
@@ -44,7 +39,6 @@ export default function EmployeeFormView() {
   const { selectedCompany, isSuperAdmin } = useAuthStore();
   const editId = getParam('id') as string | undefined;
   const isEdit = !!editId;
-  const isView = getParam('view') as boolean | undefined;
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
@@ -64,78 +58,52 @@ export default function EmployeeFormView() {
   } = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeSchema),
     defaultValues: {
+      employeeCode: '',
       firstName: '',
       lastName: '',
       email: '',
       mobile: '',
-      pan: '',
-      joiningDate: '',
-      department: '',
-      designation: '',
       branchId: '',
-      address: '',
     },
   });
 
   const watchBranchId = watch('branchId');
 
-  // Fetch branches based on selected company
   useEffect(() => {
     async function fetchBranches() {
       try {
-        const res = await apiGet<Branch[]>(
-          `/branches?companyId=${selectedCompanyId}&pageSize=100`
-        );
+        const res = await apiGet<Branch[]>(`/branches?companyId=${selectedCompanyId}&pageSize=100`);
         setBranches(Array.isArray(res) ? res : (res as any)?.data || []);
-      } catch {
-        setBranches([]);
-      }
+      } catch { setBranches([]); }
     }
-    if (selectedCompanyId) {
-      fetchBranches();
-    }
+    if (selectedCompanyId) fetchBranches();
   }, [selectedCompanyId]);
 
-  // Fetch companies for super admin
   useEffect(() => {
     async function fetchCompanies() {
       try {
         const res = await apiGet<Company[]>('/companies?pageSize=100');
         setCompanies(Array.isArray(res) ? res : (res as any)?.data || []);
-      } catch {
-        setCompanies([]);
-      }
+      } catch { setCompanies([]); }
     }
     fetchCompanies();
   }, []);
 
-  // Fetch employee data for edit mode
   useEffect(() => {
     if (!editId) return;
     async function fetchEmployee() {
       try {
-        const res = await apiGet<Employee>(`/employees/${editId}`);
-        const emp = res;
+        const emp = await apiGet<Employee>(`/employees/${editId}`);
         reset({
+          employeeCode: emp.employeeCode,
           firstName: emp.firstName,
           lastName: emp.lastName,
           email: emp.email,
           mobile: emp.mobile,
-          pan: emp.pan || '',
-          joiningDate: emp.joiningDate?.split('T')[0] || '',
-          department: emp.department || '',
-          designation: emp.designation || '',
           branchId: emp.branchId,
-          address: emp.address || '',
         });
-        if (emp.companyId) {
-          setSelectedCompanyId(emp.companyId);
-        }
-      } catch {
-        toast.error('Failed to load employee data');
-      } finally {
-        setFetching(false);
-      }
+        if (emp.companyId) setSelectedCompanyId(emp.companyId);
+      } catch { toast.error('Failed to load employee data'); } finally { setFetching(false); }
     }
     fetchEmployee();
   }, [editId, reset]);
@@ -143,10 +111,7 @@ export default function EmployeeFormView() {
   async function onSubmit(data: EmployeeFormValues) {
     setLoading(true);
     try {
-      const payload = {
-        ...data,
-        companyId: selectedCompanyId,
-      };
+      const payload = { ...data, companyId: selectedCompanyId };
       if (isEdit) {
         await apiPut(`/employees/${editId}`, payload);
         toast.success('Employee updated successfully');
@@ -155,11 +120,7 @@ export default function EmployeeFormView() {
         toast.success('Employee added successfully');
       }
       navigate('employees');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save employee');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { toast.error(err.message || 'Failed to save employee'); } finally { setLoading(false); }
   }
 
   if (fetching) {
@@ -178,7 +139,7 @@ export default function EmployeeFormView() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {isView ? 'View Employee' : isEdit ? 'Edit Employee' : 'Add Employee'}
+          {isEdit ? 'Edit Employee' : 'Add Employee'}
         </h1>
       </div>
 
@@ -187,179 +148,72 @@ export default function EmployeeFormView() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">
-                  First Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="firstName"
-                  disabled={isView || isSubmitting}
-                  {...register('firstName')}
-                />
-                {errors.firstName && (
-                  <p className="text-sm text-red-500">{errors.firstName.message}</p>
-                )}
+                <Label>Employee Code <span className="text-red-500">*</span></Label>
+                <Input disabled={isEdit || isSubmitting} {...register('employeeCode')} />
+                {errors.employeeCode && <p className="text-sm text-red-500">{errors.employeeCode.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lastName">
-                  Last Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="lastName"
-                  disabled={isView || isSubmitting}
-                  {...register('lastName')}
-                />
-                {errors.lastName && (
-                  <p className="text-sm text-red-500">{errors.lastName.message}</p>
-                )}
+                <Label>First Name <span className="text-red-500">*</span></Label>
+                <Input disabled={isSubmitting} {...register('firstName')} />
+                {errors.firstName && <p className="text-sm text-red-500">{errors.firstName.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">
-                  Email <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  disabled={isView || isSubmitting}
-                  {...register('email')}
-                />
-                {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message}</p>
-                )}
+                <Label>Last Name <span className="text-red-500">*</span></Label>
+                <Input disabled={isSubmitting} {...register('lastName')} />
+                {errors.lastName && <p className="text-sm text-red-500">{errors.lastName.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="mobile">
-                  Mobile <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="mobile"
-                  disabled={isView || isSubmitting}
-                  {...register('mobile')}
-                />
-                {errors.mobile && (
-                  <p className="text-sm text-red-500">{errors.mobile.message}</p>
-                )}
+                <Label>Email <span className="text-red-500">*</span></Label>
+                <Input type="email" disabled={isSubmitting} {...register('email')} />
+                {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="pan">PAN</Label>
-                <Input
-                  id="pan"
-                  disabled={isView || isSubmitting}
-                  {...register('pan')}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="joiningDate">
-                  Joining Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="joiningDate"
-                  type="date"
-                  disabled={isView || isSubmitting}
-                  {...register('joiningDate')}
-                />
-                {errors.joiningDate && (
-                  <p className="text-sm text-red-500">{errors.joiningDate.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  disabled={isView || isSubmitting}
-                  {...register('department')}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="designation">Designation</Label>
-                <Input
-                  id="designation"
-                  disabled={isView || isSubmitting}
-                  {...register('designation')}
-                />
+                <Label>Mobile <span className="text-red-500">*</span></Label>
+                <Input disabled={isSubmitting} {...register('mobile')} />
+                {errors.mobile && <p className="text-sm text-red-500">{errors.mobile.message}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label>Company</Label>
-                <Select
-                  value={selectedCompanyId}
-                  onValueChange={(v) => {
-                    setSelectedCompanyId(v);
-                    setValue('branchId', '', { shouldValidate: true });
-                  }}
-                  disabled={!isSuperAdmin() || isView || isSubmitting}
-                >
-                  <SelectTrigger disabled={!isSuperAdmin() || isView || isSubmitting}>
+                <Select value={selectedCompanyId} onValueChange={(v) => { setSelectedCompanyId(v); setValue('branchId', '', { shouldValidate: true }); }} disabled={!isSuperAdmin() || isSubmitting}>
+                  <SelectTrigger disabled={!isSuperAdmin() || isSubmitting}>
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
+                    {companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2 sm:col-span-2">
-                <Label>
-                  Branch <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={watchBranchId}
-                  onValueChange={(v) => setValue('branchId', v, { shouldValidate: true })}
-                  disabled={isView || isSubmitting}
-                >
+              <div className="space-y-2">
+                <Label>Branch <span className="text-red-500">*</span></Label>
+                <Select value={watchBranchId} onValueChange={(v) => setValue('branchId', v, { shouldValidate: true })} disabled={isSubmitting}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
+                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {errors.branchId && (
-                  <p className="text-sm text-red-500">{errors.branchId.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  rows={3}
-                  disabled={isView || isSubmitting}
-                  {...register('address')}
-                />
+                {errors.branchId && <p className="text-sm text-red-500">{errors.branchId.message}</p>}
               </div>
             </div>
 
-            {!isView && (
-              <div className="flex items-center gap-3 pt-2">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isEdit ? 'Update' : 'Save'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('employees')}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+              Other details (address, bank, PAN, DOB, etc.) can be filled by the employee from their profile.
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {isEdit ? 'Update' : 'Save'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => navigate('employees')} disabled={isSubmitting}>Cancel</Button>
+            </div>
           </form>
         </CardContent>
       </Card>

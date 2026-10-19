@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       where: { email: email.toLowerCase().trim() },
       include: {
         adminProfile: { include: { company: true } },
-        employee: true,
+        employee: { include: { bankDetail: true } },
       },
     });
 

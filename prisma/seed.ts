@@ -144,20 +144,18 @@ async function seed() {
       },
     });
 
-    // Create user account for first 3 employees
-    if (i < 3) {
-      const empPassword = await hashPassword('Employee@123');
-      await prisma.user.upsert({
-        where: { email: emp.email },
-        update: {},
-        create: {
-          email: emp.email,
-          password: empPassword,
-          role: 'EMPLOYEE',
-          employeeId: employee.id,
-        },
-      });
-    }
+    // Create user account for all employees
+    const empPassword = await hashPassword('Employee@123');
+    await prisma.user.upsert({
+      where: { email: emp.email },
+      update: {},
+      create: {
+        email: emp.email,
+        password: empPassword,
+        role: 'EMPLOYEE',
+        employeeId: employee.id,
+      },
+    });
 
     // Create bank details
     await prisma.employeeBankDetail.upsert({

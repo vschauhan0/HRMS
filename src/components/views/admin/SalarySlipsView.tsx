@@ -26,6 +26,7 @@ import { MONTHS, MONTHS_SHORT, PAGE_SIZE } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { SalarySlip, PaginatedResponse } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
+import { numberToWords } from '@/lib/utils';
 
 export default function SalarySlipsView() {
   const { selectedCompany } = useAuthStore();
@@ -242,79 +243,218 @@ export default function SalarySlipsView() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                    {expandedId === slip.id && (
-                      <TableRow key={`${slip.id}-detail`}>
-                        <TableCell colSpan={8} className="bg-muted/30 px-6 py-4">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div>
-                              <p className="text-xs text-muted-foreground">Basic Salary</p>
-                              <p className="text-sm">{slip.basicSalary?.toLocaleString() || '-'}</p>
+                    {expandedId === slip.id && (() => {
+                      const company = slip.employee?.company;
+                      const branch = slip.employee?.branch;
+                      const emp = slip.employee;
+                      const mmStr = String(slip.month).padStart(2, '0');
+                      const lastDay = new Date(slip.year, slip.month, 0).getDate();
+                      const fromDate = `01/${mmStr}/${slip.year}`;
+                      const toDate = `${lastDay}/${mmStr}/${slip.year}`;
+                      const isNidhi = company?.name?.toLowerCase().includes('nidhi');
+                      const logoSrc = isNidhi ? '/nidhi_impex_logo.png' : '/silver_star_logo.png';
+
+                      return (
+                        <TableRow key={`${slip.id}-detail`}>
+                          <TableCell colSpan={8} className="bg-muted/20 px-4 py-6 sm:px-8 sm:py-8">
+                            <div className="overflow-x-auto bg-neutral-300 px-3 py-4 sm:px-6 sm:py-6 rounded-xl">
+                              <div style={{ display: 'inline-block', width: '100%' }}>
+                                <article className="mx-auto w-full min-w-[680px] max-w-[960px] bg-white text-black shadow-[0_20px_50px_rgba(15,23,42,0.14)]" style={{ fontFamily: 'Arial, sans-serif' }}>
+                                  <div className="border-[2px] border-black px-5 py-5 sm:px-7 sm:py-7">
+                                    <header className="grid grid-cols-[96px_1fr_96px] items-center gap-2 border-b-[2px] border-black pb-4">
+                                      <div className="flex h-[78px] items-center justify-start overflow-hidden">
+                                        <img alt={`${company?.name || 'Company'} logo`} className="block h-[76px] w-[76px] object-contain" loading="eager" src={logoSrc} />
+                                      </div>
+                                      <div className="text-center min-w-0">
+                                        <h1 className="text-[15px] font-extrabold uppercase leading-tight sm:text-[18px]">{company?.name || 'COMPANY NAME'}</h1>
+                                        <p className="text-[9px] font-bold leading-snug sm:text-[11px] uppercase break-words whitespace-normal px-2">{company?.address || '-'}</p>
+                                        <p className="mt-2 text-[14px] font-extrabold sm:text-[16px]">Pay Slip For the Month of {MONTHS_SHORT[slip.month - 1]}-{slip.year}</p>
+                                        <p className="text-[12px] font-extrabold">(From {fromDate} To {toDate})</p>
+                                      </div>
+                                      <div></div>
+                                    </header>
+
+                                    <section className="mt-4 border-[2px] border-black">
+                                      <table className="w-full border-collapse text-[12px] leading-tight sm:text-[13px]">
+                                        <tbody>
+                                          <tr>
+                                            <td className="w-[18%] px-1.5 pt-1 align-top font-normal">Employee Name</td>
+                                            <td className="w-[32%] px-1.5 pt-1 align-top font-bold">: {emp ? `${emp.firstName} ${emp.lastName}` : '-'}</td>
+                                            <td className="w-[18%] px-1.5 pt-1 align-top font-normal">Employee Code</td>
+                                            <td className="w-[32%] px-1.5 pt-1 align-top font-bold">: {emp?.employeeCode || '-'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="px-1.5 align-top">Bank A/c No.</td>
+                                            <td className="px-1.5 align-top font-bold">: {(emp as any)?.bankDetail?.accountNumber || '-'}</td>
+                                            <td className="px-1.5 align-top">Bank Name</td>
+                                            <td className="px-1.5 align-top font-bold">: {(emp as any)?.bankDetail?.bankName || '-'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="px-1.5 align-top">UAN</td>
+                                            <td className="px-1.5 align-top font-bold">: {emp?.uan || '-'}</td>
+                                            <td className="px-1.5 align-top">Mobile</td>
+                                            <td className="px-1.5 align-top font-bold">: {emp?.mobile || '-'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="px-1.5 pb-2 align-top">Designation</td>
+                                            <td className="px-1.5 pb-2 align-top font-bold uppercase">: {emp?.designation || '-'}</td>
+                                            <td className="px-1.5 pb-2 align-top">Unit</td>
+                                            <td className="px-1.5 pb-2 align-top font-bold uppercase">: {branch?.name || '-'}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+
+                                      <div className="grid grid-cols-2 border-t-[2px] border-black text-[12px] font-bold sm:text-[13px]">
+                                        <div className="grid grid-cols-[1fr_auto] border-r-[2px] border-black px-1.5 py-1">
+                                          <span>Total Paid Days</span>
+                                          <span>: {slip.workingDays || 30}</span>
+                                        </div>
+                                        <div className="grid grid-cols-[1fr_auto] px-1.5 py-1">
+                                          <span>LWP</span>
+                                          <span>: {slip.lwp || 0}</span>
+                                        </div>
+                                        <div className="grid grid-cols-[1fr_auto] border-r-[2px] border-black px-1.5 py-1">
+                                          <span>Net Paid Days</span>
+                                          <span>: {(slip.workingDays || 30) - (slip.lwp || 0)}</span>
+                                        </div>
+                                        <div className="px-1.5 py-1"></div>
+                                      </div>
+                                    </section>
+
+                                    <section className="mt-4 border-[2px] border-black">
+                                      <table className="w-full border-collapse text-[11px] leading-tight sm:text-[13px]">
+                                        <thead>
+                                          <tr className="font-extrabold border-b-[2px] border-black">
+                                            <th className="border-r-[2px] border-black px-1.5 py-1 text-left">Earnings</th>
+                                            <th className="border-r-[2px] border-black px-1.5 py-1 text-right">Scale Rs.</th>
+                                            <th className="border-r-[2px] border-black px-1.5 py-1 text-right">Amount Rs.</th>
+                                            <th className="border-r-[2px] border-black px-1.5 py-1 text-left">Deductions</th>
+                                            <th className="border-r-[2px] border-black px-1.5 py-1 text-right">Scale Rs.</th>
+                                            <th className="px-1.5 py-1 text-right">Amount Rs.</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">BASIC</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.basicSalary?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.basicSalary?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">PROFESSIONAL TAX</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.professionalTax?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">DAILY ALLOWANCE</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.da?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.da?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">PF</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.pf?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">HRA</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.hra?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.hra?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">ESI AMOUNT</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.esi?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">Conv.A</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.conveyance?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.conveyance?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">TDS</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.tds?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">Edu.A</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.medical?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.medical?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">LWF</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.lwf?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">Med.A</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">ADVANCE</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">0.00</td>
+                                            <td className="px-1.5 py-1 text-right">{slip.advance?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1">Prod. Ince.</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.specialAllow?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right">{slip.specialAllow?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1"></td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1 text-right"></td>
+                                            <td className="px-1.5 py-1 text-right">{slip.otherDeduction?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || ''}</td>
+                                          </tr>
+                                        </tbody>
+                                        <tfoot>
+                                          <tr className="border-t-[2px] border-black text-[12px] font-extrabold sm:text-[13px]">
+                                            <td className="border-r-[2px] border-black px-1.5 py-1.5">Total Earnings</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1.5 text-right">{slip.grossSalary?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1.5 text-right">{slip.grossSalary?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1.5">Total Deductions</td>
+                                            <td className="border-r-[2px] border-black px-1.5 py-1.5 text-right">{slip.totalDeduction?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                            <td className="px-1.5 py-1.5 text-right">{slip.totalDeduction?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </section>
+
+                                    <section className="border-x-[2px] border-b-[2px] border-black text-[12px] sm:text-[13px]">
+                                      <div className="grid grid-cols-[82px_1fr] border-b border-black bg-neutral-50 px-1.5 py-1.5 font-extrabold">
+                                        <span>Net Pay</span>
+                                        <span className="font-semibold">: Rs. {slip.netSalary?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                      <div className="grid grid-cols-[82px_1fr] px-1.5 py-1.5 font-extrabold">
+                                        <span>In Words</span>
+                                        <span className="font-normal">: Rs. {numberToWords(slip.netSalary)}</span>
+                                      </div>
+                                    </section>
+
+                                    <section className="mt-4 border-[2px] border-black text-[12px] sm:text-[13px]">
+                                      <div className="border-b-[2px] border-black bg-neutral-50 px-1.5 py-1 font-extrabold">Miscellaneous Information</div>
+                                      <div className="grid grid-cols-[1fr_180px] border-b border-black">
+                                        <div className="px-1.5 py-1">SALARY</div>
+                                        <div className="border-l-[2px] border-black px-1.5 py-1 text-right font-bold">{(slip.salary || slip.grossSalary)?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                                      </div>
+                                      <div className="min-h-[120px] px-1.5 py-3 relative">
+                                        <p className="italic">TDS Deducted Upto {MONTHS_SHORT[slip.month - 1]}-{slip.year}: Rs. {slip.tds ? slip.tds.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : 'Nil'}</p>
+                                        <p className="font-extrabold">This is Computer Generated Sheet, does not require Signature.</p>
+                                        <div className="mt-16 flex items-end justify-between gap-4">
+                                          <div className="text-[11px] font-bold text-neutral-600">Paid On: -</div>
+                                          <div className="text-right">
+                                            <p className="text-[14px] font-extrabold uppercase">{company?.name || '-'}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </section>
+                                  </div>
+                                </article>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">HRA</p>
-                              <p className="text-sm">{slip.hra?.toLocaleString() || '-'}</p>
+                            <div className="mt-4 flex justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={downloadingId === slip.id}
+                                onClick={() => handleDownloadSlip(slip)}
+                              >
+                                {downloadingId === slip.id ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <FileDown className="h-4 w-4 mr-2" />
+                                )}
+                                Download Payslip
+                              </Button>
                             </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">DA</p>
-                              <p className="text-sm">{slip.da?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Conveyance</p>
-                              <p className="text-sm">{slip.conveyance?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Medical</p>
-                              <p className="text-sm">{slip.medical?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Special Allowance</p>
-                              <p className="text-sm">{slip.specialAllow?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">PF</p>
-                              <p className="text-sm">{slip.pf?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">ESI</p>
-                              <p className="text-sm">{slip.esi?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">TDS</p>
-                              <p className="text-sm">{slip.tds?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Prof. Tax</p>
-                              <p className="text-sm">{slip.professionalTax?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Other Deduction</p>
-                              <p className="text-sm">{slip.otherDeduction?.toLocaleString() || '-'}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Total Deduction</p>
-                              <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                                {slip.totalDeduction?.toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex justify-end">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={downloadingId === slip.id}
-                              onClick={() => handleDownloadSlip(slip)}
-                            >
-                              {downloadingId === slip.id ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <FileDown className="h-4 w-4 mr-2" />
-                              )}
-                              Download Payslip
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })()}
                   </Fragment>
                 ))}
               </TableBody>

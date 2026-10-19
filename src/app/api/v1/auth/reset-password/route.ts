@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase().trim(),
         otp: otp.trim(),
         purpose: 'PASSWORD_RESET',
-        verified: false,
+        verified: true,
         expiresAt: { gt: new Date() },
       },
     });

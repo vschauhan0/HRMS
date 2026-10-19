@@ -11,7 +11,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: payload.id as string },
@@ -126,6 +126,37 @@ export async function PUT(
     if (body.designation !== undefined) updateData.designation = body.designation?.trim() || null;
     if (body.address !== undefined) updateData.address = body.address?.trim() || null;
     if (body.profilePhoto !== undefined) updateData.profilePhoto = body.profilePhoto || null;
+    if (body.gender !== undefined) updateData.gender = body.gender || null;
+    if (body.city !== undefined) updateData.city = body.city?.trim() || null;
+    if (body.pin !== undefined) updateData.pin = body.pin?.trim() || null;
+    if (body.district !== undefined) updateData.district = body.district?.trim() || null;
+    if (body.state !== undefined) updateData.state = body.state?.trim() || null;
+    if (body.pfNo !== undefined) updateData.pfNo = body.pfNo?.trim() || null;
+    if (body.esiNo !== undefined) updateData.esiNo = body.esiNo?.trim() || null;
+    if (body.aadharNumber !== undefined) updateData.aadharNumber = body.aadharNumber?.trim() || null;
+    if (body.uan !== undefined) updateData.uan = body.uan?.trim() || null;
+    if (body.dob !== undefined) updateData.dob = body.dob ? new Date(body.dob) : null;
+    if (body.resignationDate !== undefined) updateData.resignationDate = body.resignationDate ? new Date(body.resignationDate) : null;
+
+    // Handle bank details
+    if (body.bankName !== undefined || body.accountNumber !== undefined || body.ifsc !== undefined || body.accountHolder !== undefined) {
+      updateData.bankDetail = {
+        upsert: {
+          create: {
+            bankName: body.bankName?.trim() || '',
+            accountNumber: body.accountNumber?.trim() || '',
+            ifsc: body.ifsc?.trim() || '',
+            accountHolder: body.accountHolder?.trim() || '',
+          },
+          update: {
+            ...(body.bankName !== undefined && { bankName: body.bankName.trim() }),
+            ...(body.accountNumber !== undefined && { accountNumber: body.accountNumber.trim() }),
+            ...(body.ifsc !== undefined && { ifsc: body.ifsc.trim() }),
+            ...(body.accountHolder !== undefined && { accountHolder: body.accountHolder.trim() }),
+          },
+        },
+      };
+    }
 
     if (body.branchId) {
       // Verify branch belongs to employee's company
@@ -140,29 +171,62 @@ export async function PUT(
             { status: 400 }
           );
         }
-        updateData.branchId = body.branchId;
+        updateData.branch = { connect: { id: body.branchId } };
       }
     }
 
     const employee = await db.employee.update({
       where: { id },
       data: updateData,
-      include: {
-        company: true,
-        branch: true,
-        bankDetail: true,
-      },
+      include: { company: true, branch: true, bankDetail: true },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: employee,
-    });
+    const empUser = await db.user.findFirst({ where: { employeeId: id } });
+    if (empUser) {
+      await db.notification.create({
+        data: { userId: empUser.id, title: 'Profile Updated', message: 'Your employee profile has been updated.', type: 'INFO', link: 'my-profile' },
+      });
+    }
+
+    return NextResponse.json({ success: true, data: employee });
   } catch (error) {
     console.error('Update employee error:', error);
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
     );
+  }
+}
+
+// DELETE /api/v1/employees/[id] - Delete employee
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, message: 'Authentication required' }, { status: 401 });
+    }
+    if (authUser.role === 'EMPLOYEE') {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    const where: Prisma.EmployeeWhereUniqueInput = { id };
+    if (authUser.role === 'ADMIN') {
+      const existing = await db.employee.findFirst({ where: { id, companyId: authUser.adminProfile?.companyId || '' } });
+      if (!existing) {
+        return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 });
+      }
+    }
+
+    await db.employee.delete({ where: { id } });
+
+    return NextResponse.json({ success: true, data: null, message: 'Employee deleted' });
+  } catch (error) {
+    console.error('Delete employee error:', error);
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

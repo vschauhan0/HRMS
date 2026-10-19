@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -76,12 +76,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: employees,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-      summary,
+      data: {
+        data: employees,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        summary,
+      },
     });
   } catch (error: any) {
     console.error('Employee report error:', error);

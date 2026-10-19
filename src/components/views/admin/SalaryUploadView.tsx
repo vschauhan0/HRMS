@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Loader2,
   CheckCircle2,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -39,14 +40,14 @@ interface InvalidRow {
 }
 
 export default function SalaryUploadView() {
-  const navigate = useNavStore();
-  const { isSuperAdmin, selectedCompany } = useAuthStore();
+  const { navigate } = useNavStore();
+  const { isSuperAdmin, selectedCompany: storeCompany } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
-  const [companyId, setCompanyId] = useState(selectedCompany?.id || '');
+  const [companyId, setCompanyId] = useState(storeCompany?.id || '');
   const [branchId, setBranchId] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -62,19 +63,18 @@ export default function SalaryUploadView() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
 
-  // Fetch companies for super admin
+  // Fetch companies
   useEffect(() => {
-    if (!isSuperAdmin()) return;
     async function fetchCompanies() {
       try {
-        const res = await apiGet<{ data: Company[] }>('/companies?pageSize=100');
-        setCompanies(res.data || []);
+        const data = await apiGet<Company[]>('/companies?pageSize=100');
+        setCompanies(Array.isArray(data) ? data : []);
       } catch {
         setCompanies([]);
       }
     }
     fetchCompanies();
-  }, [isSuperAdmin]);
+  }, []);
 
   // Fetch branches
   useEffect(() => {
@@ -84,10 +84,10 @@ export default function SalaryUploadView() {
     }
     async function fetchBranches() {
       try {
-        const res = await apiGet<{ data: Branch[] }>(
+        const data = await apiGet<Branch[]>(
           `/branches?companyId=${companyId}&pageSize=100`
         );
-        setBranches(res.data || []);
+        setBranches(Array.isArray(data) ? data : []);
       } catch {
         setBranches([]);
       }
@@ -239,6 +239,7 @@ export default function SalaryUploadView() {
                       <TableRow>
                         <TableHead>Emp Code</TableHead>
                         <TableHead>Employee Name</TableHead>
+                        <TableHead className="hidden sm:table-cell">Branch</TableHead>
                         <TableHead className="hidden sm:table-cell">Working Days</TableHead>
                         <TableHead className="hidden sm:table-cell">Present Days</TableHead>
                         <TableHead className="hidden md:table-cell">Basic Salary</TableHead>
@@ -255,6 +256,9 @@ export default function SalaryUploadView() {
                           </TableCell>
                           <TableCell className="text-sm">
                             {r.employeeName || r.employeeCode}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">
+                            {branches.find(b => b.id === branchId)?.name || '-'}
                           </TableCell>
                           <TableCell className="hidden sm:table-cell text-sm">
                             {r.workingDays ?? '-'}
@@ -338,23 +342,21 @@ export default function SalaryUploadView() {
         <Card className="rounded-xl border shadow-sm">
           <CardContent className="p-4 sm:p-6 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {isSuperAdmin() && companies.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Company</Label>
-                  <Select value={companyId} onValueChange={setCompanyId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select value={companyId} onValueChange={setCompanyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <Label>Branch</Label>
@@ -403,6 +405,14 @@ export default function SalaryUploadView() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Download Template */}
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => window.open('/api/v1/templates?type=salary', '_blank')}>
+                <Download className="h-4 w-4 mr-1.5" />
+                Download Template
+              </Button>
             </div>
 
             {/* File upload */}

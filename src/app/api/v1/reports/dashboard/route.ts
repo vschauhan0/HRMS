@@ -11,7 +11,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const queryCompanyId = searchParams.get('companyId') || '';
+    const queryBranchId = searchParams.get('branchId') || '';
 
     const companyWhere: any = {};
     if (user.role === 'ADMIN') {
@@ -38,6 +39,8 @@ export async function GET(request: NextRequest) {
     } else if (user.role === 'SUPER_ADMIN' && queryCompanyId) {
       companyWhere.id = queryCompanyId;
     }
+
+    const branchWhere = queryBranchId ? { branchId: queryBranchId } : {};
 
     const [
       totalEmployees,
@@ -48,25 +51,30 @@ export async function GET(request: NextRequest) {
       pendingAppointments,
       totalForm16,
     ] = await Promise.all([
-      db.employee.count({ where: { company: companyWhere } }),
-      db.employee.count({ where: { company: companyWhere, status: 'ACTIVE' } }),
-      db.employee.count({ where: { company: companyWhere, status: 'PENDING' } }),
-      db.employee.count({ where: { company: companyWhere, status: 'RESIGNED' } }),
+      db.employee.count({ where: { company: companyWhere, ...branchWhere } }),
+      db.employee.count({ where: { company: companyWhere, status: 'ACTIVE', ...branchWhere } }),
+      db.employee.count({ where: { company: companyWhere, status: 'PENDING', ...branchWhere } }),
+      db.employee.count({ where: { company: companyWhere, status: 'RESIGNED', ...branchWhere } }),
       db.salaryBatch.count({
-        where: companyWhere.id
-          ? { companyId: companyWhere.id }
-          : {},
+        where: {
+          ...(companyWhere.id ? { companyId: companyWhere.id } : {}),
+          ...branchWhere,
+        },
       }),
       db.appointmentForm.count({
         where: {
           ...(companyWhere.id ? { companyId: companyWhere.id } : {}),
           status: 'PENDING',
+          ...branchWhere,
         },
       }),
       db.form16Document.count({
-        where: companyWhere.id
-          ? { employee: { companyId: companyWhere.id } }
-          : {},
+        where: {
+          employee: {
+            ...(companyWhere.id ? { companyId: companyWhere.id } : {}),
+            ...branchWhere,
+          },
+        },
       }),
     ]);
 

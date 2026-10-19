@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generateOTP } from '@/lib/auth';
+import { sendEmail } from '@/lib/mail';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,10 +45,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // In production, send OTP via email. For demo, return in response.
+    await sendEmail({
+      to: email,
+      subject: 'Password Reset OTP',
+      html: `<p>Your OTP to reset your password is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`,
+    });
+
     return NextResponse.json({
       success: true,
-      data: { otp },
+      message: 'OTP sent successfully',
     });
   } catch (error) {
     console.error('Forgot password error:', error);

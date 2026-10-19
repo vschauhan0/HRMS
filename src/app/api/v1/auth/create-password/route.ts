@@ -38,51 +38,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the employee by email
-    const employee = await db.employee.findFirst({
-      where: {
-        email: email.toLowerCase().trim(),
-        status: 'PENDING',
-      },
-      include: { company: true, branch: true },
+    // Check if this is an Admin registration
+    const adminUser = await db.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      include: { adminProfile: { include: { company: true } } },
     });
 
-    if (!employee) {
-      return NextResponse.json(
-        { success: false, message: 'No pending employee found with this email' },
-        { status: 404 }
-      );
-    }
+    const isAdminRegistration = adminUser && adminUser.role === 'ADMIN' && adminUser.password === null;
+    let employee: any = null;
 
-    // Check if user already exists for this employee
-    const existingUser = await db.user.findFirst({
-      where: { employeeId: employee.id },
-    });
+    if (!isAdminRegistration) {
+      employee = await db.employee.findFirst({
+        where: {
+          email: email.toLowerCase().trim(),
+          status: 'PENDING',
+        },
+        include: { company: true, branch: true },
+      });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { success: false, message: 'This employee is already registered' },
-        { status: 400 }
-      );
+      if (!employee) {
+        return NextResponse.json(
+          { success: false, message: 'No pending registration found with this email' },
+          { status: 404 }
+        );
+      }
+
+      const existingUserByEmpId = await db.user.findFirst({
+        where: { employeeId: employee.id },
+      });
+
+      if (existingUserByEmpId) {
+        return NextResponse.json(
+          { success: false, message: 'This employee is already registered' },
+          { status: 400 }
+        );
+      }
     }
 
     const hashedPassword = await hashPassword(password);
+    let user;
 
-    // Create User record
-    const user = await db.user.create({
-      data: {
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: 'EMPLOYEE',
-        employeeId: employee.id,
-      },
-    });
+    if (isAdminRegistration) {
+      // Complete Admin Registration
+      user = await db.user.update({
+        where: { id: adminUser!.id },
+        data: { password: hashedPassword },
+      });
+    } else {
+      // Complete Employee Registration
+      user = await db.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+      });
 
-    // Update employee status to ACTIVE
-    await db.employee.update({
-      where: { id: employee.id },
-      data: { status: 'ACTIVE' },
-    });
+      if (user) {
+        if (user.employeeId && user.employeeId !== employee!.id) {
+          return NextResponse.json(
+            { success: false, message: 'This email is already registered to another employee' },
+            { status: 400 }
+          );
+        }
+        user = await db.user.update({
+          where: { id: user.id },
+          data: {
+            password: hashedPassword,
+            employeeId: employee!.id,
+            role: user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? user.role : 'EMPLOYEE',
+          },
+        });
+      } else {
+        user = await db.user.create({
+          data: {
+            email: email.toLowerCase().trim(),
+            password: hashedPassword,
+            role: 'EMPLOYEE',
+            employeeId: employee!.id,
+          },
+        });
+      }
+
+      await db.employee.update({
+        where: { id: employee!.id },
+        data: { status: 'ACTIVE' },
+      });
+    }
 
     // Delete the OTP record
     await db.otpStore.delete({
@@ -95,7 +133,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       role: user.role,
       employeeId: user.employeeId,
-      companyId: employee.companyId,
+      companyId: isAdminRegistration ? adminUser!.adminProfile?.companyId : employee!.companyId,
     });
 
     return NextResponse.json({
@@ -107,19 +145,19 @@ export async function POST(request: NextRequest) {
           email: user.email,
           role: user.role,
           employeeId: user.employeeId,
-          adminProfile: null,
-          employee: {
+          adminProfile: isAdminRegistration ? adminUser!.adminProfile : null,
+          employee: employee ? {
             ...employee,
             company: employee.company,
             branch: employee.branch,
-          },
+          } : null,
         },
       },
     });
   } catch (error) {
     console.error('Create password error:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: 'Internal server error', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

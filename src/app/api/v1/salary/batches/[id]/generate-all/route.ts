@@ -13,7 +13,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -100,7 +100,7 @@ export async function POST(
       try {
         const cumulativeTds = cumulativeTdsMap[slip.employeeId] || 0;
         const payslipData = mapSlipToPayslipData(slip as any, cumulativeTds);
-        const pdfBuffer = buildPayslipPDF(payslipData);
+        const pdfBuffer = await buildPayslipPDF(payslipData);
 
         const monthYear = `${String(slip.month).padStart(2, '0')}_${slip.year}`;
         const fileName = `payslip_${slip.employee.employeeCode}_${monthYear}.pdf`;

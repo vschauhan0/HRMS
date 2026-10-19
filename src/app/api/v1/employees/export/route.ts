@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: payload.id as string },
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       'Email': emp.email,
       'Mobile': emp.mobile,
       'PAN': emp.pan || '',
-      'Joining Date': new Date(emp.joiningDate).toLocaleDateString('en-IN'),
+      'Joining Date': emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : '',
       'Department': emp.department || '',
       'Designation': emp.designation || '',
       'Branch': emp.branch?.name || '',

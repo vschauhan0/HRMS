@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -55,15 +55,19 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    await db.appointmentForm.update({
+    const appt = await db.appointmentForm.update({
       where: { id },
-      data: {
-        status: 'REJECTED',
-        reviewedAt: new Date(),
-        reviewedBy: user.id,
-        rejectionReason: reason || null,
-      },
+      data: { status: 'REJECTED', reviewedAt: new Date(), reviewedBy: user.id, rejectionReason: reason || null },
     });
+
+    if (appt.email) {
+      const appUser = await db.user.findFirst({ where: { email: appt.email } });
+      if (appUser) {
+        await db.notification.create({
+          data: { userId: appUser.id, title: 'Appointment Rejected', message: `Your appointment application has been rejected.${reason ? ` Reason: ${reason}` : ''}`, type: 'ERROR', link: 'track-application' },
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, message: 'Appointment rejected' });
   } catch (error: any) {

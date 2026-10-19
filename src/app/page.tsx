@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { useNavStore } from '@/store/nav-store';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -18,6 +19,7 @@ import TrackApplicationView from '@/components/views/public/TrackApplicationView
 import DashboardView from '@/components/views/admin/DashboardView';
 import EmployeeListView from '@/components/views/admin/EmployeeListView';
 import EmployeeFormView from '@/components/views/admin/EmployeeFormView';
+import EmployeeDetailView from '@/components/views/admin/EmployeeDetailView';
 import EmployeeImportView from '@/components/views/admin/EmployeeImportView';
 import SalaryView from '@/components/views/admin/SalaryView';
 import SalaryUploadView from '@/components/views/admin/SalaryUploadView';
@@ -28,8 +30,7 @@ import AppointmentListView from '@/components/views/admin/AppointmentListView';
 import AppointmentDetailView from '@/components/views/admin/AppointmentDetailView';
 import ReportsView from '@/components/views/admin/ReportsView';
 import SettingsView from '@/components/views/admin/SettingsView';
-import CompanyListView from '@/components/views/admin/CompanyListView';
-import BranchListView from '@/components/views/admin/BranchListView';
+import OrganizationView from '@/components/views/admin/OrganizationView';
 import AdminListView from '@/components/views/admin/AdminListView';
 
 // Employee Views
@@ -38,12 +39,19 @@ import MySalaryView from '@/components/views/employee/MySalaryView';
 import MyForm16View from '@/components/views/employee/MyForm16View';
 import MyProfileView from '@/components/views/employee/MyProfileView';
 import ChangePasswordView from '@/components/views/employee/ChangePasswordView';
+import MyAttendanceView from '@/components/views/employee/MyAttendanceView';
+import MyLeavesView from '@/components/views/employee/MyLeavesView';
+
+// New Admin Views
+import AttendanceView from '@/components/views/admin/AttendanceView';
+import AttendanceDetailView from '@/components/views/admin/AttendanceDetailView';
+import LeaveListView from '@/components/views/admin/LeaveListView';
 
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppTopbar } from '@/components/layout/app-topbar';
 import { BottomNav } from '@/components/layout/bottom-nav';
 
-const pageTransition = {
+const pageTransition: any = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -8 },
@@ -52,7 +60,36 @@ const pageTransition = {
 
 export default function HomePage() {
   const { isAuthenticated, user, logout } = useAuthStore();
-  const { currentPage } = useNavStore();
+  const { currentPage, navigate } = useNavStore();
+
+  const isEmployee = user?.role === 'EMPLOYEE';
+
+  const isProfileComplete = user?.employee ? (
+    user.employee.email &&
+    user.employee.mobile &&
+    user.employee.pan &&
+    user.employee.gender &&
+    user.employee.city &&
+    user.employee.pin &&
+    user.employee.district &&
+    user.employee.state &&
+    user.employee.aadharNumber &&
+    user.employee.dob &&
+    user.employee.joiningDate &&
+    user.employee.department &&
+    user.employee.designation &&
+    user.employee.address &&
+    user.employee.bankDetail?.bankName &&
+    user.employee.bankDetail?.accountNumber &&
+    user.employee.bankDetail?.ifsc &&
+    user.employee.bankDetail?.accountHolder
+  ) : false;
+
+  useEffect(() => {
+    if (isEmployee && !isProfileComplete && currentPage !== 'my-profile') {
+      navigate('my-profile');
+    }
+  }, [isEmployee, isProfileComplete, currentPage, navigate]);
 
   // Public pages (no auth required)
   const publicPages: PageRoute[] = [
@@ -88,8 +125,6 @@ export default function HomePage() {
   }
 
   // Authenticated pages
-  const isEmployee = user?.role === 'EMPLOYEE';
-
   const renderPage = () => {
     if (isEmployee) {
       switch (currentPage) {
@@ -103,6 +138,10 @@ export default function HomePage() {
           return <MyProfileView />;
         case 'change-password':
           return <ChangePasswordView />;
+        case 'my-attendance':
+          return <MyAttendanceView />;
+        case 'my-leaves':
+          return <MyLeavesView />;
         default:
           return <EmployeeDashboardView />;
       }
@@ -117,6 +156,8 @@ export default function HomePage() {
       case 'employee-add':
       case 'employee-edit':
         return <EmployeeFormView />;
+      case 'employee-detail':
+        return <EmployeeDetailView />;
       case 'employee-import':
         return <EmployeeImportView />;
       case 'salary':
@@ -134,17 +175,30 @@ export default function HomePage() {
         return <AppointmentListView />;
       case 'appointment-detail':
         return <AppointmentDetailView />;
+      case 'attendance':
+        return <AttendanceView />;
+      case 'attendance-details':
+        return <AttendanceDetailView />;
+      case 'leaves':
+        return <LeaveListView />;
       case 'reports':
         return <ReportsView />;
       case 'settings':
         return <SettingsView />;
+      case 'my-profile':
+        return <MyProfileView />;
+      case 'change-password':
+        return <ChangePasswordView />;
       case 'companies':
-        return <CompanyListView />;
-      case 'branches':
-        return <BranchListView />;
+        return <OrganizationView />;
       case 'admins':
       case 'admin-add':
         return <AdminListView />;
+      case 'attendance':
+        return <AttendanceView />;
+      case 'leaves':
+      case 'leave-detail':
+        return <LeaveListView />;
       default:
         return <DashboardView />;
     }
@@ -158,7 +212,7 @@ export default function HomePage() {
         <AppSidebar />
         
         {/* Main content area */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col min-h-screen min-w-0">
           {/* Top bar */}
           <AppTopbar />
           

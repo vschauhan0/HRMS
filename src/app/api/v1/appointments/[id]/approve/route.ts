@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken, generateEmployeeCode } from '@/lib/auth';
-import { hashPassword } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
 
 function getToken(request: Request): string | null {
   const auth = request.headers.get('authorization');
@@ -11,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -34,13 +33,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const appointment = await db.appointmentForm.findUnique({
-      where: { id },
-      include: {
-        company: { select: { id: true, code: true } },
-        branch: { select: { id: true, code: true } },
-      },
-    });
+    const appointment = await db.appointmentForm.findUnique({ where: { id } });
 
     if (!appointment) {
       return NextResponse.json({ success: false, message: 'Appointment form not found' }, { status: 404 });
@@ -57,45 +50,22 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    // Generate employee code
-    const employeeCode = generateEmployeeCode(appointment.company.code, appointment.branch.code);
-
-    // Split full name
-    const nameParts = appointment.fullName.trim().split(/\s+/);
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    // Create employee record
-    const employee = await db.employee.create({
-      data: {
-        companyId: appointment.companyId,
-        branchId: appointment.branchId,
-        employeeCode,
-        firstName,
-        lastName,
-        email: appointment.email,
-        mobile: appointment.mobile,
-        joiningDate: new Date(),
-        status: 'ACTIVE',
-        appointmentFormId: appointment.id,
-      },
-    });
-
-    // Update appointment status
     await db.appointmentForm.update({
       where: { id },
-      data: {
-        status: 'APPROVED',
-        reviewedAt: new Date(),
-        reviewedBy: user.id,
-      },
+      data: { status: 'APPROVED', reviewedAt: new Date(), reviewedBy: user.id },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: { employeeCode },
-      message: 'Appointment approved and employee created',
-    });
+    // Notify the employee who applied
+    if (appointment.email) {
+      const appUser = await db.user.findFirst({ where: { email: appointment.email } });
+      if (appUser) {
+        await db.notification.create({
+          data: { userId: appUser.id, title: 'Appointment Approved', message: 'Your appointment application has been approved.', type: 'SUCCESS', link: 'track-application' },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, message: 'Appointment approved' });
   } catch (error: any) {
     console.error('Appointment approve error:', error);
     return NextResponse.json(

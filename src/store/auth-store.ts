@@ -1,16 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AuthUser, Role, Company } from '@/types';
+import type { AuthUser, Role, Company, Branch } from '@/types';
 
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   selectedCompany: Company | null;
+  selectedBranch: Branch | null;
   setAuth: (user: AuthUser, token: string) => void;
   logout: () => void;
   setUser: (user: AuthUser) => void;
-  selectCompany: (company: Company) => void;
+  clearCompany: () => void;
+  selectCompany: (company: Company | null) => void;
+  selectBranch: (branch: Branch | null) => void;
   hasRole: (roles: Role[]) => boolean;
   isSuperAdmin: () => boolean;
   isAdmin: () => boolean;
@@ -24,6 +27,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       selectedCompany: null,
+      selectedBranch: null,
 
       setAuth: (user, token) => {
         const selectedCompany = user.role === 'EMPLOYEE' ? null :
@@ -47,7 +51,9 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
 
-      selectCompany: (company) => set({ selectedCompany: company }),
+      clearCompany: () => set({ selectedCompany: null, selectedBranch: null }),
+      selectCompany: (company) => set({ selectedCompany: company, selectedBranch: null }),
+      selectBranch: (branch) => set({ selectedBranch: branch }),
 
       hasRole: (roles) => {
         const { user } = get();
@@ -68,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         selectedCompany: state.selectedCompany,
+        selectedBranch: state.selectedBranch,
       }),
     }
   )

@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowLeft } from 'lucide-react';
+import { PasswordInput } from '@/components/ui/password-input';
+import { PasswordStrength } from '@/components/ui/password-strength';
 
 const passwordSchema = z
   .object({
@@ -44,6 +46,7 @@ export default function ChangePasswordView() {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
   });
@@ -65,15 +68,7 @@ export default function ChangePasswordView() {
     }
   };
 
-  const requirements = [
-    { label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
-    { label: 'One uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
-    { label: 'One lowercase letter', test: (v: string) => /[a-z]/.test(v) },
-    { label: 'One number', test: (v: string) => /[0-9]/.test(v) },
-    { label: 'One special character', test: (v: string) => /[^A-Za-z0-9]/.test(v) },
-  ];
-
-  const watchNewPassword = {} as any;
+  const newPasswordValue = watch('newPassword') || '';
 
   return (
     <div className="space-y-6 max-w-lg mx-auto">
@@ -96,21 +91,11 @@ export default function ChangePasswordView() {
             {/* Current Password */}
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative">
-                <Input
-                  id="currentPassword"
-                  type={showCurrent ? 'text' : 'password'}
-                  placeholder="Enter current password"
-                  {...register('currentPassword')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="currentPassword"
+                placeholder="Enter current password"
+                {...register('currentPassword')}
+              />
               {errors.currentPassword && (
                 <p className="text-sm text-red-600">{errors.currentPassword.message}</p>
               )}
@@ -119,60 +104,27 @@ export default function ChangePasswordView() {
             {/* New Password */}
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showNew ? 'text' : 'password'}
-                  placeholder="Enter new password"
-                  {...register('newPassword')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="newPassword"
+                placeholder="Enter new password"
+                {...register('newPassword')}
+              />
               {errors.newPassword && (
                 <p className="text-sm text-red-600">{errors.newPassword.message}</p>
               )}
             </div>
 
             {/* Password Requirements */}
-            <div className="space-y-2 rounded-lg bg-muted/50 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Password requirements:</p>
-              <ul className="space-y-1.5">
-                {requirements.map((req) => (
-                  <li
-                    key={req.label}
-                    className="flex items-center gap-2 text-xs text-muted-foreground"
-                  >
-                    <CheckCircle2 className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                    {req.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <PasswordStrength password={newPasswordValue} />
 
             {/* Confirm Password */}
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirm ? 'text' : 'password'}
-                  placeholder="Confirm new password"
-                  {...register('confirmPassword')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="confirmPassword"
+                placeholder="Confirm new password"
+                {...register('confirmPassword')}
+              />
               {errors.confirmPassword && (
                 <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}

@@ -34,12 +34,12 @@ const statCardVariants = {
   hidden: { opacity: 0, y: 16 },
   show: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.08, type: 'spring', stiffness: 300, damping: 24 },
+    transition: { delay: i * 0.08, type: 'spring' as const, stiffness: 300, damping: 24 },
   }),
 };
 
 export default function AppointmentListView() {
-  const navigate = useNavStore();
+  const { navigate } = useNavStore();
   const { selectedCompany } = useAuthStore();
   const [appointments, setAppointments] = useState<AppointmentForm[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -80,7 +80,7 @@ export default function AppointmentListView() {
         if (selectedCompany?.id) p.set('companyId', selectedCompany.id);
         if (status) p.set('status', status);
         const r = await fetch(`/api/v1/appointments?${p}`, { headers });
-        const j = await r.json(); return j.total || 0;
+        const j = await r.json(); return j.data?.total || j.total || 0;
       };
       const [t, p, a, r] = await Promise.all([getCount(), getCount('PENDING'), getCount('APPROVED'), getCount('REJECTED')]);
       setStats({ total: t, pending: p, approved: a, rejected: r });

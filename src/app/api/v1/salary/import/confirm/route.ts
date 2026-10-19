@@ -10,7 +10,7 @@ function getToken(request: Request): string | null {
 async function getAuthUser(request: Request) {
   const token = getToken(request);
   if (!token) return null;
-  const payload = verifyToken(token);
+  const payload = verifyToken(token) as { id: string } | null;
   if (!payload) return null;
   return db.user.findUnique({
     where: { id: (payload as any).id },
@@ -59,77 +59,58 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create salary slips using upsert
+    // Create salary slips and auto-generate attendance
     for (const record of records) {
-      // Each record may have its own month (from the Month column override)
       const recordMonth = record.month ?? month;
       const recordYear = record.year ?? year;
 
       await db.salarySlip.upsert({
-        where: {
-          employeeId_month_year: {
-            employeeId: record.employeeId,
-            month: recordMonth,
-            year: recordYear,
-          },
-        },
+        where: { employeeId_month_year: { employeeId: record.employeeId, month: recordMonth, year: recordYear } },
         create: {
-          batchId: batch.id,
-          employeeId: record.employeeId,
-          month: recordMonth,
-          year: recordYear,
-          salary: record.salary ?? null,
-          workingDays: record.workingDays ?? null,
-          presentDays: record.presentDays ?? null,
-          leave: record.leave ?? null,
-          basicSalary: record.basicSalary ?? null,
-          hra: record.hra ?? null,
-          da: record.da ?? null,
-          conveyance: record.conveyance ?? null,
-          specialAllow: record.specialAllow ?? null,
-          otherEarning: record.otherEarning ?? null,
-          grossSalary: record.grossSalary ?? 0,
-          pf: record.pf ?? null,
-          esi: record.esi ?? null,
-          professionalTax: record.professionalTax ?? null,
-          tds: record.tds ?? null,
-          advance: record.advance ?? null,
-          otherDeduction: record.otherDeduction ?? null,
-          totalDeduction: record.totalDeduction ?? 0,
-          netSalary: record.netSalary,
+          batchId: batch.id, employeeId: record.employeeId, month: recordMonth, year: recordYear,
+          salary: record.salary ?? null, workingDays: record.workingDays ?? null, presentDays: record.presentDays ?? null,
+          leave: record.leave ?? null, basicSalary: record.basicSalary ?? null, hra: record.hra ?? null,
+          da: record.da ?? null, conveyance: record.conveyance ?? null, specialAllow: record.specialAllow ?? null,
+          otherEarning: record.otherEarning ?? null, grossSalary: record.grossSalary ?? 0, pf: record.pf ?? null,
+          esi: record.esi ?? null, professionalTax: record.professionalTax ?? null, tds: record.tds ?? null,
+          advance: record.advance ?? null, otherDeduction: record.otherDeduction ?? null,
+          totalDeduction: record.totalDeduction ?? 0, netSalary: record.netSalary,
         },
         update: {
-          batchId: batch.id,
-          salary: record.salary ?? null,
-          workingDays: record.workingDays ?? null,
-          presentDays: record.presentDays ?? null,
-          leave: record.leave ?? null,
-          basicSalary: record.basicSalary ?? null,
-          hra: record.hra ?? null,
-          da: record.da ?? null,
-          conveyance: record.conveyance ?? null,
-          specialAllow: record.specialAllow ?? null,
-          otherEarning: record.otherEarning ?? null,
-          grossSalary: record.grossSalary ?? 0,
-          pf: record.pf ?? null,
-          esi: record.esi ?? null,
-          professionalTax: record.professionalTax ?? null,
-          tds: record.tds ?? null,
-          advance: record.advance ?? null,
-          otherDeduction: record.otherDeduction ?? null,
-          totalDeduction: record.totalDeduction ?? 0,
-          netSalary: record.netSalary,
+          batchId: batch.id, salary: record.salary ?? null, workingDays: record.workingDays ?? null,
+          presentDays: record.presentDays ?? null, leave: record.leave ?? null, basicSalary: record.basicSalary ?? null,
+          hra: record.hra ?? null, da: record.da ?? null, conveyance: record.conveyance ?? null,
+          specialAllow: record.specialAllow ?? null, otherEarning: record.otherEarning ?? null,
+          grossSalary: record.grossSalary ?? 0, pf: record.pf ?? null, esi: record.esi ?? null,
+          professionalTax: record.professionalTax ?? null, tds: record.tds ?? null, advance: record.advance ?? null,
+          otherDeduction: record.otherDeduction ?? null, totalDeduction: record.totalDeduction ?? 0, netSalary: record.netSalary,
         },
       });
+
+      // Notify employee
+      const empUser = await db.user.findFirst({ where: { employeeId: record.employeeId } });
+      if (empUser) {
+        const monthName = new Date(recordYear, recordMonth - 1).toLocaleString('default', { month: 'long' });
+        await db.notification.create({
+          data: { userId: empUser.id, title: 'Salary Uploaded', message: `Your salary for ${monthName} ${recordYear} has been uploaded.`, type: 'SUCCESS', link: 'my-salary' },
+        });
+      }
+
+      // Auto-generate attendance for each day of the month
+      const daysInMonth = new Date(recordYear, recordMonth, 0).getDate();
+      const presentDays = record.presentDays ?? 0;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(recordYear, recordMonth - 1, day);
+        const status = day <= presentDays ? 'PRESENT' : 'ABSENT';
+        await db.attendance.upsert({
+          where: { employeeId_date: { employeeId: record.employeeId, date } },
+          create: { employeeId: record.employeeId, date, status },
+          update: { status },
+        });
+      }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        batchId: batch.id,
-        importedRecords: records.length,
-      },
-    });
+    return NextResponse.json({ success: true, data: { batchId: batch.id, importedRecords: records.length } });
   } catch (error: any) {
     console.error('Salary import confirm error:', error);
     return NextResponse.json(

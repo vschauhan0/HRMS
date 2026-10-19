@@ -26,7 +26,7 @@ const MONTHS = [
 
 export default function EmployeeDashboardView() {
   const { user } = useAuthStore();
-  const navigate = useNavStore();
+  const { navigate } = useNavStore();
   const [profile, setProfile] = useState<Employee | null>(null);
   const [slips, setSlips] = useState<SalarySlip[]>([]);
   const [form16Docs, setForm16Docs] = useState<Form16Document[]>([]);
